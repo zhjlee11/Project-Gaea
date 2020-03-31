@@ -1,11 +1,137 @@
 <html>
-   <body>
-   
-      <form action = "/uploader" method = "POST" 
-         enctype = "multipart/form-data">
-         <input type = "file" name = "file" />
-         <input type = "submit"/>
-      </form>
-      
-   </body>
+    <head>
+	    <meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+		<style>
+			.container{
+				margin-top:20px;
+			}
+			.image-preview-input {
+				position: relative;
+				overflow: hidden;
+				margin: 0px;    
+				color: #333;
+				background-color: #fff;
+				border-color: #ccc;    
+			}
+			.image-preview-input input[type=file] {
+				position: absolute;
+				top: 0;
+				right: 0;
+				margin: 0;
+				padding: 0;
+				font-size: 20px;
+				cursor: pointer;
+				opacity: 0;
+				filter: alpha(opacity=0);
+			}
+			.image-preview-input-title {
+				margin-left:2px;
+			}
+		</style>
+		
+		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+		<script type="text/javascript">
+					$(document).on('click', '#close-preview', function(){ 
+				$('.image-preview').popover('hide');
+				// Hover befor close the preview
+				$('.image-preview').hover(
+					function () {
+					   $('.image-preview').popover('show');
+					}, 
+					 function () {
+					   $('.image-preview').popover('hide');
+					}
+				);    
+			});
+
+			$(function() {
+				// Create the close button
+				var closebtn = $('<button/>', {
+					type:"button",
+					text: 'x',
+					id: 'close-preview',
+					style: 'font-size: initial;',
+				});
+				closebtn.attr("class","close pull-right");
+				// Set the popover default content
+				$('.image-preview').popover({
+					trigger:'manual',
+					html:true,
+					title: "<strong>Preview</strong>"+$(closebtn)[0].outerHTML,
+					content: "There's no image",
+					placement:'bottom'
+				});
+				// Clear event
+				$('.image-preview-clear').click(function(){
+					$('.image-preview').attr("data-content","").popover('hide');
+					$('.image-preview-filename').val("");
+					$('.image-preview-clear').hide();
+					$('.image-preview-input input:file').val("");
+					$(".image-preview-input-title").text("Browse"); 
+				}); 
+				// Create the preview image
+				$(".image-preview-input input:file").change(function (){     
+					var img = $('<img/>', {
+						id: 'dynamic',
+						width:250,
+						height:200
+					});      
+					var file = this.files[0];
+					var reader = new FileReader();
+					// Set preview image into the popover data-content
+					reader.onload = function (e) {
+						$(".image-preview-input-title").text("Change");
+						$(".image-preview-clear").show();
+						$(".image-preview-filename").val(file.name);            
+						img.attr('src', e.target.result);
+						$(".image-preview").attr("data-content",$(img)[0].outerHTML).popover("show");
+					}        
+					reader.readAsDataURL(file);
+				});  
+			});
+		</script>
+    </head>
+    <body>
+	    <div class="container" style="background-color: #000000;">
+		<div class="contact-clean" style="background-color: #FFFFFF;">
+
+        <form action = "/upload" method = "POST" enctype = "multipart/form-data" class="was-validated">
+		   <div class="form-group">
+		   <div class="row">    
+				<div class="col-xs-12 col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">  
+					<!-- image-preview-filename input [CUT FROM HERE]-->
+					<div class="input-group image-preview">
+						<input type="text" class="form-control image-preview-filename" disabled="disabled"> <!-- don't give a name === doesn't send on POST/GET -->
+						<span class="input-group-btn">
+							<!-- image-preview-clear button -->
+							<button type="button" class="btn btn-default image-preview-clear" style="display:none;">
+								<span class="glyphicon glyphicon-remove"></span> 파일 지우기
+							</button>
+							<!-- image-preview-input -->
+							<div class="btn btn-default image-preview-input">
+								<span class="glyphicon glyphicon-folder-open"></span>
+								<span class="image-preview-input-title">파일 업로드</span>
+								<input type="file" accept="image/png, image/jpeg" name="input-file-preview"/> <!-- rename it -->
+							</div>
+						</span>
+					</div>
+				</div>
+			</div></div>
+
+		  <div class="form-group"><div class="form-check">
+			  <input class="form-check-input is-invalid" type="checkbox" value="" id="agree" required>
+			  <label class="form-check-label" for="agree">
+				라이센스를 모두 읽었으며, 동의합니다.
+			  </label>
+			  <div class="valid-feedback">동의 완료!</div>
+		  </div></div>
+          <div class="form-group"><button type = "submit" class="btn btn-primary">변환 시작</button></div>
+       </form>
+      </div></div>
+    </body>
 </html>

@@ -1,12 +1,20 @@
-from flask import Flask, render_template, request
+from flask import g, Flask, render_template, request, Response, send_file, redirect, url_for, make_response, session
 from werkzeug.utils import secure_filename
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+import os
 
 app = Flask(__name__)
+app.secret_key = 'any random string'
 app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
+
+def get_model():
+  gan = getattr(g, '_gan', None)
+  if gan is None:
+    gan = g._gan = load_model()
+  return gan
 
 def normalize(image):
     image = tf.cast(image, tf.float32)
@@ -43,23 +51,50 @@ class image_predict():
         pred = self.model(self.image[np.newaxis])
         return cv2.resize(np.float32(pred[0]), dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
 
-@app.route('/upload')
+@app.route('/')
+def default_template():
+    return render_template('main.html')
+    
+@app.route('/info')
+def info_template():
+    return render_template('info.html')
+
+@app.route('/upload', methods = ['GET'])
 def load_file():
+    try:
+        path = session['saved_image']
+        if path != None:
+            os.remove(path)
+    except:
+        pass
     return render_template('upload.html')
 	
-@app.route('/uploader', methods = ['GET', 'POST'])
+@app.route('/upload', methods = ['POST'])
 def upload_file():
+    try:
+        path = session['saved_image']
+        if path != None:
+            os.remove(path)
+    except:
+        pass
     if request.method == 'POST':
-        f = request.files['file']
+        f = request.files['input-file-preview']
         if f == None :
             return "비어있는 파일"
         f.save("./data/" + secure_filename(f.filename))
-        img = cv2.imread("./data/" + secure_filename(f.filename), cv2.IMREAD_COLOR)
-        imgp = image_predict(load_model(), cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        generate_images(imgp.oimg, imgp.predict())
-        return 'file uploaded successfully'
+        img = cv2.imread("./data/" + secure_filename(f.filename), 3)
+        rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        imgp = image_predict(get_model(), rgb_image)
+        os.remove("./data/" + secure_filename(f.filename))
+        path = './converteddata/'+secure_filename(f.filename)
+        predicted_image = cv2.convertScaleAbs(imgp.predict(), alpha=(255.0))
+        cv2.imwrite(path, predicted_image)
+        session['saved_image'] = path
+        return send_file(path, attachment_filename=secure_filename(f.filename), as_attachment=True)
     else:
         return "메서드 오류"
-    
-generator = load_model()
+        
+
+
+
 app.run(debug = True)
