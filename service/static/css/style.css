@@ -1,7 +1,9 @@
 canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position:fixed;
+  left:0;
+  top:0;
   background-color: black;
+  touch-action: none;
+  z-index : -999;
 } 
 
