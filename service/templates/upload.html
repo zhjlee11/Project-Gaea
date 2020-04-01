@@ -71,7 +71,7 @@
 				$('.image-preview').popover({
 					trigger:'manual',
 					html:true,
-					title: "<strong>Preview</strong>"+$(closebtn)[0].outerHTML,
+					title: "<strong>Input Preview</strong>"+$(closebtn)[0].outerHTML,
 					content: "There's no image",
 					placement:'bottom'
 				});
@@ -104,13 +104,24 @@
 				});  
 			});
 		</script>
+		
+		{% if message %}
+		<script>		
+			alert('{{message}}')   //이 부분이 중요
+		</script>
+		{% endif %}
     </head>
     <body>
 	    <div class="container">
 		<canvas id=c></canvas>
 		<div class="contact-clean" style="background-color: #FFFFFF;  padding: 30px 30px; border-radius: 40px 80px; width : auto;">
-
+		<center><h1><a href="/" style="color: inherit;">Project Gaea</a></h1></center></br></br></hr>
         <form action = "/upload" method = "POST" enctype = "multipart/form-data" class="was-validated" style="">
+		   <div class="form-group">
+				<input type="text" name="gamename" size="65" placeholder="생성된 리소스가 사용될 게임 이름을 입력해주세요.">
+				
+				<small id="gamename" class="form-text text-muted">입력된 게임 이름과 다른 게임에서 사용될 시에는 라이센스 위반으로 판단합니다.</small>
+		   </div>
 		   <div class="form-group">
 		   <div class="row">    
 				<div class="col-xs-12 col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2">  
@@ -134,7 +145,7 @@
 			</div></div>
 
 		  <div class="form-group"><div class="form-check">
-			  <input class="form-check-input is-invalid" type="checkbox" value="" id="agree" required>
+			  <input class="form-check-input is-invalid" type="checkbox" value="on" id="agree" name="agree" required>
 			  <label class="form-check-label" for="agree">
 				"<a href="/license" style="color: inherit;">라이센스</a>"를 모두 읽었으며, 동의합니다.
 			  </label>

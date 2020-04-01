@@ -1,0 +1,80 @@
+<html>
+    <head>
+	    <meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+		<style>
+			.container{
+				margin-top:20px;
+			}
+			.image-preview-input {
+				position: relative;
+				overflow: hidden;
+				margin: 0px;    
+				color: #333;
+				background-color: #fff;
+				border-color: #ccc;    
+			}
+			.image-preview-input input[type=file] {
+				position: absolute;
+				top: 0;
+				right: 0;
+				margin: 0;
+				padding: 0;
+				font-size: 20px;
+				cursor: pointer;
+				opacity: 0;
+				filter: alpha(opacity=0);
+			}
+			.image-preview-input-title {
+				margin-left:2px;
+			}
+			
+			
+			
+			canvas {
+			  position:fixed;
+			  left:0;
+			  top:0;
+			  background-color: black;
+			  touch-action: none;
+			  z-index : -999;
+			} 
+		</style>
+		
+		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+    </head>
+    <body>
+	    <div class="container">
+		<canvas id=c></canvas>
+		<div class="contact-clean" style="background-color: #FFFFFF;  padding: 30px 30px; border-radius: 40px 80px; width : auto;">
+			<center>
+			<h1><a href="/" style="color: inherit;">Project Gaea</a></h1>
+			</center>
+			<p> 
+			1) 9명 이하의 팀원 및 개인이 제작하는 영리 및 비영리 게임에서는 출처(가이아 프로젝트 웹사이트 링크) 표기를 하실 경우 사용하실 수 있습니다. 2차 수정은 가능하나 2차 수정 후 배포는 불가합니다. 변환 직후 상태 또한 배포는 불가능합니다.
+			</p>
+			<p> 
+			2) 크롤러 등으로 서버에 트래픽을 유발하는 행위는 IP Ban을 당하실 수 있습니다.
+			</p>
+			<p> 
+			3) 10명 이상의 팀원 및 기업에서  개발하는 영리 및 비영리 게임은 별도의 허가를 받은 후에만 사용하실 수 있습니다. 이 경우, zhjleeb@gmail.com으로 게임과 개발사에 대한 상세한 설명을 보내주세요. 빠른 시일 내로 답변드리겠습니다.
+			</p>
+			<p> 
+			4) 모든 변환 기록은 로그로 남습니다.(IP, 날짜, 입력 이미지, 생성된 이미지 등)
+			</p>
+			<p> 
+			5) 해당 라이센스 동의 후에만 가이아 프로젝트 서비스를 이용하실 수 있습니다.
+			</p>
+			
+			
+			
+		</div>
+		</div>
+	  
+	  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    </body>
+</html>

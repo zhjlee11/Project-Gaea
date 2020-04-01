@@ -62,7 +62,21 @@
 			  touch-action: none;
 			  z-index : -999;
 			} 
+			
+			footer{ position:fixed; 
+			  left:0px; 
+			  bottom:0px; 
+			  height:20px; 
+			  width:100%; 
+			  color: white; 
+		    }
 		</style>
+		
+		{% if message %}
+		<script>		
+			alert('{{message}}')   //이 부분이 중요
+		</script>
+		{% endif %}
 	</head>
 	<body style="overflow: hidden;">
 	    
@@ -74,6 +88,8 @@
 			</br>
 			<button type="button" onclick="location.href='/upload'" class="button" >패러다임 속으로</button>
 		</center>		
+		
+		<footer><h6 style="font-size: 0.7em;">백그라운드 캔버스 : <a href="https://codepen.io/towc/pen/YXGYJY" style="color: inherit;">https://codepen.io/towc/pen/YXGYJY</a></h6></footer>
 		
 		<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 		
