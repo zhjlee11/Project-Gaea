@@ -19,14 +19,14 @@ get_ipython().system('pip install h5py pyyaml')
 
 # ## (1) 데이터셋 다운로드
 
-# In[ ]:
+# In[4]:
 
 
 import tensorflow as tf
 print(tf.__version__)
 
 
-# In[2]:
+# In[5]:
 
 
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -50,7 +50,7 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 # Tensorfow Dataset에서 summer2winter_yosemite 데이터 셋을 가져온 후, 분리한다.
 
-# In[3]:
+# In[6]:
 
 
 BUFFER_SIZE = 1000
@@ -61,7 +61,7 @@ IMG_HEIGHT = 256
 
 # ## (2) 데이터셋 학습 전 준비 과정
 
-# In[4]:
+# In[7]:
 
 
 #이미지 주어진 크기에 따라 랜덤으로 분할,
@@ -72,7 +72,7 @@ def random_crop(image):
   return cropped_image
 
 
-# In[5]:
+# In[8]:
 
 
 # "-1 <= image <= 1" 로 변환
@@ -88,7 +88,7 @@ def normalize(image):
 
 
 
-# In[6]:
+# In[9]:
 
 
 #이미지 변환 처리 중..
@@ -106,7 +106,7 @@ def random_jitter(image):
   return image
 
 
-# In[7]:
+# In[10]:
 
 
 def preprocess_image_train(image, label):
@@ -121,7 +121,7 @@ def preprocess_image_train(image, label):
 
 
 
-# In[8]:
+# In[11]:
 
 
 def preprocess_image_test(image, label):
@@ -129,7 +129,7 @@ def preprocess_image_test(image, label):
   return image
 
 
-# In[9]:
+# In[12]:
 
 
 def preprocess_image_train_nl(image):
@@ -138,7 +138,7 @@ def preprocess_image_train_nl(image):
   return image
 
 
-# In[10]:
+# In[13]:
 
 
 class imagedata:
@@ -159,19 +159,14 @@ class imagedata:
     self.outp = preprocess_image_train_nl(self.outp)
 
 
-# In[ ]:
+# In[14]:
 
 
 PATH_DIR='./Dataset/'
 filelist = []
 
-for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
-  try :
-    filelist.append(imagedata(PATH_DIR + str(i)))
-  except :
-    print(str(i)+" 파일 로드 실패")
-    continue
-  print(str(i)+" 파일 로드 완료")
+for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge")]:
+  filelist.append(imagedata(PATH_DIR + str(i)))
 
 
 # ## (3) 각 데이터셋의 첫 데이터를 띄운다.
@@ -179,7 +174,7 @@ for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file
 # ## (4) CycleGAN 신경망 구성
 # > https://subinium.github.io/introduction-to-normalization/ : 정규화에 대한 글
 
-# In[ ]:
+# In[15]:
 
 
 #인스턴스 정규화 (IN) - 각 채널에서 정규화가 이루어짐
@@ -208,7 +203,7 @@ class InstanceNormalization(tf.keras.layers.Layer):
     return self.scale * normalized + self.offset
 
 
-# In[ ]:
+# In[16]:
 
 
 #다운샘플링 - UNET의 하강 부분에서 학습데이터를 압축하여 feature을 얻어내는 역할을 함.
@@ -254,7 +249,7 @@ def upsample(filters, size, norm_type='batchnorm', apply_dropout=False):
   return result
 
 
-# In[ ]:
+# In[17]:
 
 
 #CycleGAN의 Generator 신경망을 U-NET으로 구성하는 역할을 함
@@ -351,7 +346,7 @@ def discriminator(norm_type='batchnorm', target=True):
 # *Generator* 함수 **G**와 **F**는 ***역함수*** 관계</br>
 # *Discriminator* 함수 **X**와 **Y**는 ***역함수*** 관계
 
-# In[ ]:
+# In[18]:
 
 
 OUTPUT_CHANNELS = 3
@@ -363,19 +358,19 @@ discriminator_x = discriminator(norm_type='instancenorm', target=False)
 discriminator_y = discriminator(norm_type='instancenorm', target=False)
 
 
-# In[ ]:
+# In[19]:
 
 
 LAMBDA = 10
 
 
-# In[ ]:
+# In[20]:
 
 
 loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
-# In[ ]:
+# In[21]:
 
 
 #Discriminator 함수의 손실 구하기
@@ -389,7 +384,7 @@ def discriminator_loss(real, generated):
   return total_disc_loss * 0.5
 
 
-# In[ ]:
+# In[22]:
 
 
 #Generator 함수의 손실 구하기
@@ -397,7 +392,7 @@ def generator_loss(generated):
   return loss_obj(tf.ones_like(generated), generated)
 
 
-# In[ ]:
+# In[23]:
 
 
 #Generator을 통하여 변환된 이미지와 실제 이미지 사이의 손실 계산
@@ -407,7 +402,7 @@ def calc_cycle_loss(real_image, cycled_image):
   return LAMBDA * loss1
 
 
-# In[ ]:
+# In[24]:
 
 
 #CycleGAN과 GAN의 차이인 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산
@@ -416,7 +411,7 @@ def identity_loss(real_image, same_image):
   return LAMBDA * 0.5 * loss
 
 
-# In[ ]:
+# In[25]:
 
 
 def unison_shuffled_copies(a, b):
@@ -427,7 +422,7 @@ def unison_shuffled_copies(a, b):
 
 # ## (9) 학습 준비
 
-# In[ ]:
+# In[26]:
 
 
 #옵티마이저 설정
@@ -438,7 +433,7 @@ discriminator_x_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 discriminator_y_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
 
-# In[ ]:
+# In[27]:
 
 
 #만약 전에 학습시킨 모델이 있다면, 불러와서 이어서 학습 & 없다면 새로 학습
@@ -460,14 +455,14 @@ if ckpt_manager.latest_checkpoint:
   print ('Latest checkpoint restored!!')
 
 
-# In[ ]:
+# In[28]:
 
 
 #학습 횟수
 EPOCHS = 30000
 
 
-# In[ ]:
+# In[29]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -490,7 +485,7 @@ def generate_images(model, test_input):
   plt.show()
 
 
-# In[ ]:
+# In[30]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -515,7 +510,7 @@ def generate_images_r(model, test_input, real_output):
   plt.show()
 
 
-# In[ ]:
+# In[31]:
 
 
 def sampling(train_x, train_y, batch_size) :
@@ -531,7 +526,7 @@ def sampling(train_x, train_y, batch_size) :
 
 # ## (10) 학습 함수 구성
 
-# In[ ]:
+# In[39]:
 
 
 #학습 함수
@@ -611,43 +606,23 @@ def train_step(real_x, real_y):
                                                 discriminator_y.trainable_variables))
 
 
-# In[ ]:
+# In[33]:
 
 
-train_x = []
+'''train_x = []
 train_y = []
 
 for i in filelist:
   print("인풋 배열 크기 : " + str(i.inp.shape))
   print("아웃풋 배열 크기" + str(i.outp.shape))
   train_x.append(i.inp)
-  train_y.append(i.outp)
+  train_y.append(i.outp)'''
 
 
-# In[ ]:
+# In[34]:
 
 
-from random import sample
-import random
-def sampling_list(a, b, batch):
-  batches = [random.randint(0,len(a)-1) for r in range(0, batch)]
-  c = []
-  d = []
-  for j in batches:
-    c.append(a[j])
-    d.append(b[j])
-  g = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
-  h = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
-  for i in range(0, batch):
-    g = np.append(g, c[i][np.newaxis], axis=0)
-    h = np.append(h, d[i][np.newaxis], axis=0)
-  return g, h
-
-
-# In[ ]:
-
-
-'''train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
+train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
 train_y = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
 
 numi = 1
@@ -656,26 +631,26 @@ for i in filelist:
   #print("아웃풋 배열 크기" + str(i.outp.shape))
   #train_x.append(i.inp)
   print(str(numi) + "번째 이미지 로드 중..")
-  
+  numi = numi + 1
   train_x = np.append(train_x, i.inp[np.newaxis], axis=0)
   train_y = np.append(train_y, i.outp[np.newaxis], axis=0)
-  
-  if train_x.shape[0] % 500 == 0 and train_y.shape[0] % 500 == 0:
-    print("================================================================================================================")
-    np.save("saved_array/train_x", train_x)
-    np.save("saved_array/train_y", train_y)
-    f = open("saved_array/textnum.txt", 'w')
-    f.write(str(numi))
-    f.close()
-    
-    print("= "+str(numi)+"번쨰 배열 파일 세이브 완료")
-    print("================================================================================================================")
-  numi = numi + 1
   #train_y.append(i.outp)
-    '''
 
 
-# In[ ]:
+# In[35]:
+
+
+print("train_x의 크기 : " + str(train_x.shape))
+print("train_y의 크기 : " + str(train_y.shape))
+
+
+# In[36]:
+
+
+train_x[2:2+1, :, :, :].shape
+
+
+# In[37]:
 
 
 plt.figure(figsize=(12, 12))
@@ -695,11 +670,11 @@ plt.show()
 # In[ ]:
 
 
-cepoch=0
+cepoch=7786
 for epoch in range(EPOCHS):
 
 
-  a, b = sampling_list(train_x, train_y, 15)
+  a, b = sampling(train_x, train_y, 15)
   print("{0}번째 학습 시작".format(epoch+cepoch+1))
   train_step(a, b)
   print("{0}번째 학습 완료".format(epoch+cepoch+1))
@@ -738,7 +713,13 @@ for epoch in range(EPOCHS):
 generate_images_r(generator_g, train_x[0], train_y[0])
 
 
-# In[41]:
+# In[45]:
+
+
+generator_g.save('my_model.h5')
+
+
+# In[40]:
 
 
 generator_g.save('saved_model/generator_g', save_format='tf')
