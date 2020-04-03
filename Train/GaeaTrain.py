@@ -19,7 +19,7 @@ get_ipython().system('pip install h5py pyyaml')
 
 # ## (1) 데이터셋 다운로드
 
-# In[ ]:
+# In[1]:
 
 
 import tensorflow as tf
@@ -32,7 +32,7 @@ print(tf.__version__)
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 
-
+import sys
 import os
 import time
 import matplotlib.pyplot as plt
@@ -159,7 +159,7 @@ class imagedata:
     self.outp = preprocess_image_train_nl(self.outp)
 
 
-# In[ ]:
+# In[11]:
 
 
 PATH_DIR='./Dataset/'
@@ -179,7 +179,7 @@ for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file
 # ## (4) CycleGAN 신경망 구성
 # > https://subinium.github.io/introduction-to-normalization/ : 정규화에 대한 글
 
-# In[ ]:
+# In[12]:
 
 
 #인스턴스 정규화 (IN) - 각 채널에서 정규화가 이루어짐
@@ -208,7 +208,7 @@ class InstanceNormalization(tf.keras.layers.Layer):
     return self.scale * normalized + self.offset
 
 
-# In[ ]:
+# In[13]:
 
 
 #다운샘플링 - UNET의 하강 부분에서 학습데이터를 압축하여 feature을 얻어내는 역할을 함.
@@ -254,7 +254,7 @@ def upsample(filters, size, norm_type='batchnorm', apply_dropout=False):
   return result
 
 
-# In[ ]:
+# In[14]:
 
 
 #CycleGAN의 Generator 신경망을 U-NET으로 구성하는 역할을 함
@@ -351,7 +351,7 @@ def discriminator(norm_type='batchnorm', target=True):
 # *Generator* 함수 **G**와 **F**는 ***역함수*** 관계</br>
 # *Discriminator* 함수 **X**와 **Y**는 ***역함수*** 관계
 
-# In[ ]:
+# In[15]:
 
 
 OUTPUT_CHANNELS = 3
@@ -363,19 +363,19 @@ discriminator_x = discriminator(norm_type='instancenorm', target=False)
 discriminator_y = discriminator(norm_type='instancenorm', target=False)
 
 
-# In[ ]:
+# In[16]:
 
 
 LAMBDA = 10
 
 
-# In[ ]:
+# In[17]:
 
 
 loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
-# In[ ]:
+# In[18]:
 
 
 #Discriminator 함수의 손실 구하기
@@ -389,7 +389,7 @@ def discriminator_loss(real, generated):
   return total_disc_loss * 0.5
 
 
-# In[ ]:
+# In[19]:
 
 
 #Generator 함수의 손실 구하기
@@ -397,7 +397,7 @@ def generator_loss(generated):
   return loss_obj(tf.ones_like(generated), generated)
 
 
-# In[ ]:
+# In[20]:
 
 
 #Generator을 통하여 변환된 이미지와 실제 이미지 사이의 손실 계산
@@ -407,7 +407,7 @@ def calc_cycle_loss(real_image, cycled_image):
   return LAMBDA * loss1
 
 
-# In[ ]:
+# In[21]:
 
 
 #CycleGAN과 GAN의 차이인 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산
@@ -416,7 +416,7 @@ def identity_loss(real_image, same_image):
   return LAMBDA * 0.5 * loss
 
 
-# In[ ]:
+# In[22]:
 
 
 def unison_shuffled_copies(a, b):
@@ -427,7 +427,7 @@ def unison_shuffled_copies(a, b):
 
 # ## (9) 학습 준비
 
-# In[ ]:
+# In[23]:
 
 
 #옵티마이저 설정
@@ -438,7 +438,7 @@ discriminator_x_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 discriminator_y_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
 
-# In[ ]:
+# In[24]:
 
 
 #만약 전에 학습시킨 모델이 있다면, 불러와서 이어서 학습 & 없다면 새로 학습
@@ -460,14 +460,14 @@ if ckpt_manager.latest_checkpoint:
   print ('Latest checkpoint restored!!')
 
 
-# In[ ]:
+# In[25]:
 
 
 #학습 횟수
 EPOCHS = 30000
 
 
-# In[ ]:
+# In[26]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -490,7 +490,7 @@ def generate_images(model, test_input):
   plt.show()
 
 
-# In[ ]:
+# In[27]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -515,7 +515,7 @@ def generate_images_r(model, test_input, real_output):
   plt.show()
 
 
-# In[ ]:
+# In[28]:
 
 
 def sampling(train_x, train_y, batch_size) :
@@ -531,7 +531,7 @@ def sampling(train_x, train_y, batch_size) :
 
 # ## (10) 학습 함수 구성
 
-# In[ ]:
+# In[29]:
 
 
 #학습 함수
@@ -609,9 +609,58 @@ def train_step(real_x, real_y):
 
   discriminator_y_optimizer.apply_gradients(zip(discriminator_y_gradients,
                                                 discriminator_y.trainable_variables))
+    
+  return total_gen_g_loss
 
 
-# In[ ]:
+# In[30]:
+
+
+def cal_g_loss(real_x, real_y, generator_g, generator_f, discriminator_x, discriminator_y):
+  # persistent is set to True because the tape is used more than
+  # once to calculate the gradients.
+  with tf.GradientTape(persistent=True) as tape:
+    # Generator G 는 X -> Y 로 변환
+    # Generator F 는 Y -> X 로 변환
+
+
+    fake_y = generator_g(real_x, training=True)
+
+    cycled_x = generator_f(fake_y, training=True)
+
+    fake_x = generator_f(real_y, training=True)
+
+    cycled_y = generator_g(fake_x, training=True)
+
+    # same_x & same_y 는 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산에 이용됨.
+    same_x = generator_f(real_x, training=True)
+
+    same_y = generator_g(real_y, training=True)
+
+
+    
+    disc_real_x = discriminator_x(real_x, training=True)
+
+    disc_real_y = discriminator_y(real_y, training=True)
+
+
+    disc_fake_x = discriminator_x(fake_x, training=True)
+
+    disc_fake_y = discriminator_y(fake_y, training=True)
+
+
+    # 해당 손실 연산
+    gen_g_loss = generator_loss(disc_fake_y)
+    gen_f_loss = generator_loss(disc_fake_x)
+    
+    total_cycle_loss = calc_cycle_loss(real_x, cycled_x) + calc_cycle_loss(real_y, cycled_y)
+    
+    # 총합 손실 연산 (Generator_g의 역함수 Generator_f에 대한 손실 계산 삭제)
+    total_gen_g_loss = gen_g_loss + total_cycle_loss# + identity_loss(real_y, same_y)
+  return total_gen_g_loss
+
+
+# In[31]:
 
 
 train_x = []
@@ -624,7 +673,7 @@ for i in filelist:
   train_y.append(i.outp)
 
 
-# In[ ]:
+# In[32]:
 
 
 from random import sample
@@ -644,7 +693,7 @@ def sampling_list(a, b, batch):
   return g, h
 
 
-# In[ ]:
+# In[33]:
 
 
 '''train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
@@ -675,7 +724,73 @@ for i in filelist:
     '''
 
 
-# In[ ]:
+# In[34]:
+
+
+def readago():
+    f = open("saved_loss/textnum.txt", "r")
+    lines = f.read()
+    f.close()
+    losstrainlist = []
+    losstestlist = []
+    for i in lines.split("\n"):
+        if i == "[losslog]" :
+            continue
+        losstrainlist.append(float(i.split(":")[1]))
+        losstestlist.append(float(i.split(":")[2]))
+        
+    return losstrainlist, losstestlist
+
+
+# In[35]:
+
+
+def drawlossg(ll1, ll2):
+    y1 = ll1
+    x1 = range(1, len(ll1)+1)
+    y2 = ll2
+    x2 = range(1, len(ll2)+1)
+    
+    plt.plot(x1, y1, x2, y2)
+    plt.xlabel("epochs")
+    plt.ylabel("loss")
+    plt.title("Loss Graph")
+    plt.legend(['Train', 'Test'], loc=0)
+    plt.show()
+
+
+# In[36]:
+
+
+def saveloss(epoch, loss1, loss2):
+    f = open("saved_loss/textnum.txt", "a")
+    f.write("\n{0}:{1}:{2}".format(str(epoch), str(loss1.numpy()), str(loss2.numpy())))
+    f.close()
+    return loss1.numpy(), loss2.numpy()
+
+
+# In[37]:
+
+
+PATH_DIR='./testinput/'
+testlist = []
+
+for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
+  try :
+    testlist.append(imagedata(PATH_DIR + str(i)))
+  except :
+    print(str(i)+" 파일 로드 실패")
+    continue
+  print(str(i)+" 파일 로드 완료")
+
+test_x = []
+test_y = []
+for i in testlist:
+  test_x.append(i.inp)
+  test_y.append(i.outp)
+
+
+# In[38]:
 
 
 plt.figure(figsize=(12, 12))
@@ -695,14 +810,23 @@ plt.show()
 # In[ ]:
 
 
-cepoch=0
+losstrainlist, losstestlist = readago()
+cepoch=len(losstrainlist)
+
+print()
 for epoch in range(EPOCHS):
 
 
   a, b = sampling_list(train_x, train_y, 15)
+  c, d = sampling_list(test_x, test_y, 3)
   print("{0}번째 학습 시작".format(epoch+cepoch+1))
-  train_step(a, b)
+  losstrain = train_step(a, b)
+  losstest = cal_g_loss(c, d, generator_g, generator_f, discriminator_x, discriminator_y)
   print("{0}번째 학습 완료".format(epoch+cepoch+1))
+  loss1, loss2 = saveloss(epoch+cepoch+1, losstrain, losstest)
+  losstrainlist.append(loss1)
+  losstestlist.append(loss2)
+  print("{0}번째 학습 로그 작성 완료".format(epoch+cepoch+1))
   '''
   n = 0
   for image_x, image_y in tf.data.Dataset.zip((train_x, train_y)):
@@ -713,13 +837,19 @@ for epoch in range(EPOCHS):
     n+=1'''
 
   
-
-
+  
+  
 
   clear_output(wait=True)
   # Using a consistent image (sample_summer) so that the progress of the model
   # is clearly visible.
-  generate_images_r(generator_g, a[0], b[0])
+  #print("==================================학습 이미지 비교================================")
+  #generate_images_r(generator_g, a[0], b[0])
+  print("==================================테스트 이미지 비교================================")
+  generate_images_r(generator_g, c[0], d[0])
+  if epoch+cepoch+1 >= 3 :
+    print("==================================손실 그래프================================")
+    drawlossg(losstrainlist, losstestlist)
 
   if (epoch + 1) % 5 == 0:
     try :
