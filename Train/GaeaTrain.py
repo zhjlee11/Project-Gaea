@@ -878,6 +878,10 @@ for epoch in range(EPOCHS):
   generate_images_r(generator_g, c[0], d[0])
   print("=================================={0}번째 손실 그래프================================".format(epoch+cepoch+1))
   drawlossg(losstrainlist, losstestlist, epoch+cepoch+1)
+  if loss2 - losstestlist[-2] >= 0:
+    print("{0}번째 손실 : {1} [+{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
+  else :
+    print("{0}번째 손실 : {1} [{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
 
   if (epoch + 1) % 5 == 0:
     try :
