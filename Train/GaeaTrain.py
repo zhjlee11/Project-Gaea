@@ -50,7 +50,7 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 # Tensorfow Dataset에서 summer2winter_yosemite 데이터 셋을 가져온 후, 분리한다.
 
-# In[3]:
+# In[59]:
 
 
 BUFFER_SIZE = 1000
@@ -61,7 +61,7 @@ IMG_HEIGHT = 256
 
 # ## (2) 데이터셋 학습 전 준비 과정
 
-# In[4]:
+# In[60]:
 
 
 #이미지 주어진 크기에 따라 랜덤으로 분할,
@@ -72,7 +72,7 @@ def random_crop(image):
   return cropped_image
 
 
-# In[5]:
+# In[61]:
 
 
 # "-1 <= image <= 1" 로 변환
@@ -88,7 +88,7 @@ def normalize(image):
 
 
 
-# In[6]:
+# In[62]:
 
 
 #이미지 변환 처리 중..
@@ -106,7 +106,7 @@ def random_jitter(image):
   return image
 
 
-# In[7]:
+# In[63]:
 
 
 def preprocess_image_train(image, label):
@@ -121,7 +121,7 @@ def preprocess_image_train(image, label):
 
 
 
-# In[8]:
+# In[64]:
 
 
 def preprocess_image_test(image, label):
@@ -129,7 +129,7 @@ def preprocess_image_test(image, label):
   return image
 
 
-# In[9]:
+# In[65]:
 
 
 def preprocess_image_train_nl(image):
@@ -138,7 +138,7 @@ def preprocess_image_train_nl(image):
   return image
 
 
-# In[10]:
+# In[66]:
 
 
 class imagedata:
@@ -148,18 +148,22 @@ class imagedata:
     self.outp = self.outp.resize((w, h))
     area = (0, 0, int(w/4), int(h/4))
     self.inp = self.outp.crop(area)
-    self.inp = self.inp.resize((w, h))
+    
+    
+    inp1 = cv2.cvtColor(np.array(self.inp), cv2.COLOR_BGR2RGB)
+    inp2 = cv2.vconcat([inp1, inp1, inp1, inp1])
+    self.inp = cv2.hconcat([inp2, inp2, inp2, inp2]) 
+    
+    
     self.oinp = self.inp
     self.ooutp = self.outp
-    self.inp = np.array(self.oinp)
     self.outp = np.array(self.ooutp)
-    self.inp = cv2.cvtColor(self.inp, cv2.COLOR_BGR2RGB)
     self.outp = cv2.cvtColor(self.outp, cv2.COLOR_BGR2RGB)
     self.inp = preprocess_image_train_nl(self.inp)
     self.outp = preprocess_image_train_nl(self.outp)
 
 
-# In[ ]:
+# In[67]:
 
 
 '''PATH_DIR='./Dataset/'
@@ -174,7 +178,7 @@ for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file
   print(str(i)+" 파일 로드 완료")'''
 
 
-# In[12]:
+# In[68]:
 
 
 PATH_DIR='./Dataset/'
@@ -186,40 +190,16 @@ filelist = [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or fi
 # ## (4) CycleGAN 신경망 구성
 # > https://subinium.github.io/introduction-to-normalization/ : 정규화에 대한 글
 
-# In[13]:
+# In[69]:
 
 
-#인스턴스 정규화 (IN) - 각 채널에서 정규화가 이루어짐
-class InstanceNormalization(tf.keras.layers.Layer):
-  def __init__(self, epsilon=1e-5):
-    super(InstanceNormalization, self).__init__()
-    self.epsilon = epsilon
-
-  def build(self, input_shape):
-    self.scale = self.add_weight(
-        name='scale',
-        shape=input_shape[-1:],
-        initializer=tf.random_normal_initializer(1., 0.02),
-        trainable=True)
-
-    self.offset = self.add_weight(
-        name='offset',
-        shape=input_shape[-1:],
-        initializer='zeros',
-        trainable=True)
-
-  def call(self, x):
-    mean, variance = tf.nn.moments(x, axes=[1, 2], keepdims=True)
-    inv = tf.math.rsqrt(variance + self.epsilon)
-    normalized = (x - mean) * inv
-    return self.scale * normalized + self.offset
+OUTPUT_CHANNELS = 3
 
 
-# In[14]:
+# In[70]:
 
 
-#다운샘플링 - UNET의 하강 부분에서 학습데이터를 압축하여 feature을 얻어내는 역할을 함.
-def downsample(filters, size, norm_type='batchnorm', apply_norm=True):
+def downsample(filters, size, apply_batchnorm=True):
   initializer = tf.random_normal_initializer(0., 0.02)
 
   result = tf.keras.Sequential()
@@ -227,75 +207,71 @@ def downsample(filters, size, norm_type='batchnorm', apply_norm=True):
       tf.keras.layers.Conv2D(filters, size, strides=2, padding='same',
                              kernel_initializer=initializer, use_bias=False))
 
-  if apply_norm:
-    if norm_type.lower() == 'batchnorm':
-      result.add(tf.keras.layers.BatchNormalization())
-    elif norm_type.lower() == 'instancenorm':
-      result.add(InstanceNormalization())
+  if apply_batchnorm:
+    result.add(tf.keras.layers.BatchNormalization())
 
   result.add(tf.keras.layers.LeakyReLU())
 
   return result
 
-#업샘플링 - UNET의 상승 부분에서 학습데이터를 압축 해제하여, 원래 학습 데이터와 해상도를 일치시키는 역할을 함.
-def upsample(filters, size, norm_type='batchnorm', apply_dropout=False):
+
+# In[71]:
+
+
+def upsample(filters, size, apply_dropout=False):
   initializer = tf.random_normal_initializer(0., 0.02)
 
   result = tf.keras.Sequential()
   result.add(
-      tf.keras.layers.Conv2DTranspose(filters, size, strides=2,
-                                      padding='same',
-                                      kernel_initializer=initializer,
-                                      use_bias=False))
+    tf.keras.layers.Conv2DTranspose(filters, size, strides=2,
+                                    padding='same',
+                                    kernel_initializer=initializer,
+                                    use_bias=False))
 
-  if norm_type.lower() == 'batchnorm':
-    result.add(tf.keras.layers.BatchNormalization())
-  elif norm_type.lower() == 'instancenorm':
-    result.add(InstanceNormalization())
+  result.add(tf.keras.layers.BatchNormalization())
 
   if apply_dropout:
-    result.add(tf.keras.layers.Dropout(0.5))
+      result.add(tf.keras.layers.Dropout(0.5))
 
   result.add(tf.keras.layers.ReLU())
 
   return result
 
 
-# In[15]:
+# In[72]:
 
 
-#CycleGAN의 Generator 신경망을 U-NET으로 구성하는 역할을 함
-def unet_generator(output_channels, norm_type='batchnorm'):
+def Generator():
+  inputs = tf.keras.layers.Input(shape=[256,256,3])
+
   down_stack = [
-      downsample(64, 4, norm_type, apply_norm=False),  # (bs, 128, 128, 64)
-      downsample(128, 4, norm_type),  # (bs, 64, 64, 128)
-      downsample(256, 4, norm_type),  # (bs, 32, 32, 256)
-      downsample(512, 4, norm_type),  # (bs, 16, 16, 512)
-      downsample(512, 4, norm_type),  # (bs, 8, 8, 512)
-      downsample(512, 4, norm_type),  # (bs, 4, 4, 512)
-      downsample(512, 4, norm_type),  # (bs, 2, 2, 512)
-      downsample(512, 4, norm_type),  # (bs, 1, 1, 512)
+    downsample(64, 4, apply_batchnorm=False), # (bs, 128, 128, 64)
+    downsample(128, 4), # (bs, 64, 64, 128)
+    downsample(256, 4), # (bs, 32, 32, 256)
+    downsample(512, 4), # (bs, 16, 16, 512)
+    downsample(512, 4), # (bs, 8, 8, 512)
+    downsample(512, 4), # (bs, 4, 4, 512)
+    downsample(512, 4), # (bs, 2, 2, 512)
+    downsample(512, 4), # (bs, 1, 1, 512)
   ]
 
   up_stack = [
-      upsample(512, 4, norm_type, apply_dropout=True),  # (bs, 2, 2, 1024)
-      upsample(512, 4, norm_type, apply_dropout=True),  # (bs, 4, 4, 1024)
-      upsample(512, 4, norm_type, apply_dropout=True),  # (bs, 8, 8, 1024)
-      upsample(512, 4, norm_type),  # (bs, 16, 16, 1024)
-      upsample(256, 4, norm_type),  # (bs, 32, 32, 512)
-      upsample(128, 4, norm_type),  # (bs, 64, 64, 256)
-      upsample(64, 4, norm_type),  # (bs, 128, 128, 128)
+    upsample(512, 4, apply_dropout=True), # (bs, 2, 2, 1024)
+    upsample(512, 4, apply_dropout=True), # (bs, 4, 4, 1024)
+    upsample(512, 4, apply_dropout=True), # (bs, 8, 8, 1024)
+    upsample(512, 4), # (bs, 16, 16, 1024)
+    upsample(256, 4), # (bs, 32, 32, 512)
+    upsample(128, 4), # (bs, 64, 64, 256)
+    upsample(64, 4), # (bs, 128, 128, 128)
   ]
 
   initializer = tf.random_normal_initializer(0., 0.02)
-  last = tf.keras.layers.Conv2DTranspose(
-      output_channels, 4, strides=2,
-      padding='same', kernel_initializer=initializer,
-      activation='tanh')  # (bs, 256, 256, 3)
+  last = tf.keras.layers.Conv2DTranspose(OUTPUT_CHANNELS, 4,
+                                         strides=2,
+                                         padding='same',
+                                         kernel_initializer=initializer,
+                                         activation='tanh') # (bs, 256, 256, 3)
 
-  concat = tf.keras.layers.Concatenate()
-
-  inputs = tf.keras.layers.Input(shape=[None, None, 3])
   x = inputs
 
   # Downsampling through the model
@@ -309,177 +285,124 @@ def unet_generator(output_channels, norm_type='batchnorm'):
   # Upsampling and establishing the skip connections
   for up, skip in zip(up_stack, skips):
     x = up(x)
-    x = concat([x, skip])
+    x = tf.keras.layers.Concatenate()([x, skip])
 
   x = last(x)
 
   return tf.keras.Model(inputs=inputs, outputs=x)
 
-#CycleGAN의 Discriminato 신경망을 구성하는 역할을 함
-def discriminator(norm_type='batchnorm', target=True):
+
+# In[73]:
+
+
+LAMBDA = 100
+
+
+# In[74]:
+
+
+def generator_loss(disc_generated_output, gen_output, target):
+  gan_loss = loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
+
+  # mean absolute error
+  l1_loss = tf.reduce_mean(tf.abs(target - gen_output))
+
+  total_gen_loss = gan_loss + (LAMBDA * l1_loss)
+
+  return total_gen_loss, gan_loss, l1_loss
+
+
+# In[75]:
+
+
+def Discriminator():
   initializer = tf.random_normal_initializer(0., 0.02)
 
-  inp = tf.keras.layers.Input(shape=[None, None, 3], name='input_image')
-  x = inp
+  inp = tf.keras.layers.Input(shape=[256, 256, 3], name='input_image')
+  tar = tf.keras.layers.Input(shape=[256, 256, 3], name='target_image')
 
-  if target:
-    tar = tf.keras.layers.Input(shape=[None, None, 3], name='target_image')
-    x = tf.keras.layers.concatenate([inp, tar])  # (bs, 256, 256, channels*2)
+  x = tf.keras.layers.concatenate([inp, tar]) # (bs, 256, 256, channels*2)
 
-  down1 = downsample(64, 4, norm_type, False)(x)  # (bs, 128, 128, 64)
-  down2 = downsample(128, 4, norm_type)(down1)  # (bs, 64, 64, 128)
-  down3 = downsample(256, 4, norm_type)(down2)  # (bs, 32, 32, 256)
+  down1 = downsample(64, 4, False)(x) # (bs, 128, 128, 64)
+  down2 = downsample(128, 4)(down1) # (bs, 64, 64, 128)
+  down3 = downsample(256, 4)(down2) # (bs, 32, 32, 256)
 
-  zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)  # (bs, 34, 34, 256)
-  conv = tf.keras.layers.Conv2D(
-      512, 4, strides=1, kernel_initializer=initializer,
-      use_bias=False)(zero_pad1)  # (bs, 31, 31, 512)
+  zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3) # (bs, 34, 34, 256)
+  conv = tf.keras.layers.Conv2D(512, 4, strides=1,
+                                kernel_initializer=initializer,
+                                use_bias=False)(zero_pad1) # (bs, 31, 31, 512)
 
-  if norm_type.lower() == 'batchnorm':
-    norm1 = tf.keras.layers.BatchNormalization()(conv)
-  elif norm_type.lower() == 'instancenorm':
-    norm1 = InstanceNormalization()(conv)
+  batchnorm1 = tf.keras.layers.BatchNormalization()(conv)
 
-  leaky_relu = tf.keras.layers.LeakyReLU()(norm1)
+  leaky_relu = tf.keras.layers.LeakyReLU()(batchnorm1)
 
-  zero_pad2 = tf.keras.layers.ZeroPadding2D()(leaky_relu)  # (bs, 33, 33, 512)
+  zero_pad2 = tf.keras.layers.ZeroPadding2D()(leaky_relu) # (bs, 33, 33, 512)
 
-  last = tf.keras.layers.Conv2D(
-      1, 4, strides=1,
-      kernel_initializer=initializer)(zero_pad2)  # (bs, 30, 30, 1)
+  last = tf.keras.layers.Conv2D(1, 4, strides=1,
+                                kernel_initializer=initializer)(zero_pad2) # (bs, 30, 30, 1)
 
-  if target:
-    return tf.keras.Model(inputs=[inp, tar], outputs=last)
-  else:
-    return tf.keras.Model(inputs=inp, outputs=last)
+  return tf.keras.Model(inputs=[inp, tar], outputs=last)
+
+
+# In[76]:
+
+
+loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+
+
+# In[77]:
+
+
+def discriminator_loss(disc_real_output, disc_generated_output):
+  real_loss = loss_object(tf.ones_like(disc_real_output), disc_real_output)
+
+  generated_loss = loss_object(tf.zeros_like(disc_generated_output), disc_generated_output)
+
+  total_disc_loss = real_loss + generated_loss
+
+  return total_disc_loss
 
 
 # ## (5) 신경망 준비
 # *Generator* 함수 **G**와 **F**는 ***역함수*** 관계</br>
 # *Discriminator* 함수 **X**와 **Y**는 ***역함수*** 관계
 
-# In[16]:
+# In[78]:
 
 
-OUTPUT_CHANNELS = 3
+generator = Generator()
+discriminator = Discriminator()
 
-generator_g = unet_generator(OUTPUT_CHANNELS, norm_type='instancenorm')
-generator_f = unet_generator(OUTPUT_CHANNELS, norm_type='instancenorm')
-
-discriminator_x = discriminator(norm_type='instancenorm', target=False)
-discriminator_y = discriminator(norm_type='instancenorm', target=False)
-
-
-# In[17]:
-
-
-LAMBDA = 10
-
-
-# In[18]:
-
-
-loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-
-
-# In[19]:
-
-
-#Discriminator 함수의 손실 구하기
-def discriminator_loss(real, generated):
-  real_loss = loss_obj(tf.ones_like(real), real)
-
-  generated_loss = loss_obj(tf.zeros_like(generated), generated)
-
-  total_disc_loss = real_loss + generated_loss
-
-  return total_disc_loss * 0.5
-
-
-# In[20]:
-
-
-#Generator 함수의 손실 구하기
-def generator_loss(generated):
-  return loss_obj(tf.ones_like(generated), generated)
-
-
-# In[21]:
-
-
-#Generator을 통하여 변환된 이미지와 실제 이미지 사이의 손실 계산
-def calc_cycle_loss(real_image, cycled_image):
-  loss1 = tf.reduce_mean(tf.abs(real_image - cycled_image))
-  
-  return LAMBDA * loss1
-
-
-# In[22]:
-
-
-#CycleGAN과 GAN의 차이인 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산
-def identity_loss(real_image, same_image):
-  loss = tf.reduce_mean(tf.abs(real_image - same_image))
-  return LAMBDA * 0.5 * loss
-
-
-# In[23]:
-
-
-def unison_shuffled_copies(a, b):
-    assert len(a) == len(b)
-    p = random.permutation(a.shape[0])
-    return a[p], b[p]
+generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
 
 # ## (9) 학습 준비
 
-# In[24]:
+# In[79]:
 
 
-#옵티마이저 설정
-generator_g_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-generator_f_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-
-discriminator_x_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-discriminator_y_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-
-
-# In[25]:
+checkpoint_dir = './training_checkpoints'
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
+                                 discriminator_optimizer=discriminator_optimizer,
+                                 generator=generator,
+                                 discriminator=discriminator)
 
 
-#만약 전에 학습시킨 모델이 있다면, 불러와서 이어서 학습 & 없다면 새로 학습
-checkpoint_path = "./checkpoints/train"
-
-ckpt = tf.train.Checkpoint(generator_g=generator_g,
-                           generator_f=generator_f,
-                           discriminator_x=discriminator_x,
-                           discriminator_y=discriminator_y,
-                           generator_g_optimizer=generator_g_optimizer,
-                           generator_f_optimizer=generator_f_optimizer,
-                           discriminator_x_optimizer=discriminator_x_optimizer,
-                           discriminator_y_optimizer=discriminator_y_optimizer)
-
-ckpt_manager = tf.train.CheckpointManager(ckpt, checkpoint_path, max_to_keep=5)
-
-if ckpt_manager.latest_checkpoint:
-  ckpt.restore(ckpt_manager.latest_checkpoint)
-  print ('Latest checkpoint restored!!')
-
-
-# In[26]:
+# In[80]:
 
 
 #학습 횟수
 EPOCHS = 30000
 
 
-# In[27]:
+# In[81]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
 def generate_images(model, test_input):
-  prediction = model(test_input[np.newaxis])
+  prediction = model(test_input[np.newaxis], training=True)
   test_input1 = cv2.resize(test_input[np.newaxis][0], dsize=(128, 192), interpolation=cv2.INTER_AREA)
   prediction1 = cv2.resize(np.array(prediction[0]), dsize=(128, 192), interpolation=cv2.INTER_AREA)
   plt.figure(figsize=(12, 12))
@@ -497,7 +420,7 @@ def generate_images(model, test_input):
   plt.show()
 
 
-# In[28]:
+# In[82]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -522,7 +445,7 @@ def generate_images_r(model, test_input, real_output):
   plt.show()
 
 
-# In[29]:
+# In[83]:
 
 
 def sampling(train_x, train_y, batch_size) :
@@ -538,136 +461,51 @@ def sampling(train_x, train_y, batch_size) :
 
 # ## (10) 학습 함수 구성
 
-# In[47]:
+# In[84]:
 
 
-#학습 함수
 @tf.function
-def train_step(real_x, real_y):
-  # persistent is set to True because the tape is used more than
-  # once to calculate the gradients.
-  with tf.GradientTape(persistent=True) as tape:
-    # Generator G 는 X -> Y 로 변환
-    # Generator F 는 Y -> X 로 변환
+def train_step(input_image, target):
+  with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+    gen_output = generator(input_image, training=True)
 
+    disc_real_output = discriminator([input_image, target], training=True)
+    disc_generated_output = discriminator([input_image, gen_output], training=True)
 
-    fake_y = generator_g(real_x, training=True)
+    gen_total_loss, gen_gan_loss, gen_l1_loss = generator_loss(disc_generated_output, gen_output, target)
+    disc_loss = discriminator_loss(disc_real_output, disc_generated_output)
 
-    cycled_x = generator_f(fake_y, training=True)
+  generator_gradients = gen_tape.gradient(gen_total_loss,
+                                          generator.trainable_variables)
+  discriminator_gradients = disc_tape.gradient(disc_loss,
+                                               discriminator.trainable_variables)
 
-    fake_x = generator_f(real_y, training=True)
-
-    cycled_y = generator_g(fake_x, training=True)
-
-    # same_x & same_y 는 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산에 이용됨.
-    same_x = generator_f(real_x, training=True)
-
-    same_y = generator_g(real_y, training=True)
-
-
+  generator_optimizer.apply_gradients(zip(generator_gradients,
+                                          generator.trainable_variables))
+  discriminator_optimizer.apply_gradients(zip(discriminator_gradients,
+                                              discriminator.trainable_variables))
     
-    disc_real_x = discriminator_x(real_x, training=True)
-
-    disc_real_y = discriminator_y(real_y, training=True)
+  return gen_total_loss
 
 
-    disc_fake_x = discriminator_x(fake_x, training=True)
-
-    disc_fake_y = discriminator_y(fake_y, training=True)
+# In[85]:
 
 
-    # 해당 손실 연산
-    gen_g_loss = generator_loss(disc_fake_y)
-    gen_f_loss = generator_loss(disc_fake_x)
+@tf.function
+def cal_g_loss(input_image, target, generator, discriminator):
+  with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+    gen_output = generator(input_image, training=True)
+
+    disc_real_output = discriminator([input_image, target], training=True)
+    disc_generated_output = discriminator([input_image, gen_output], training=True)
+
+    gen_total_loss, gen_gan_loss, gen_l1_loss = generator_loss(disc_generated_output, gen_output, target)
+    disc_loss = discriminator_loss(disc_real_output, disc_generated_output)
     
-    total_cycle_loss = calc_cycle_loss(real_x, cycled_x) + calc_cycle_loss(real_y, cycled_y)
-    
-    # 총합 손실 연산 (Generator_g의 역함수 Generator_f에 대한 손실 계산 삭제)
-    total_gen_g_loss = gen_g_loss + total_cycle_loss# + identity_loss(real_y, same_y)
-    total_gen_f_loss = gen_f_loss + total_cycle_loss# + identity_loss(real_x, same_x)
-
-    disc_x_loss = discriminator_loss(disc_real_x, disc_fake_x)
-    disc_y_loss = discriminator_loss(disc_real_y, disc_fake_y)
-  
-  # 가중치 연산
-
-  generator_g_gradients = tape.gradient(total_gen_g_loss, 
-                                        generator_g.trainable_variables)
-
-  generator_f_gradients = tape.gradient(total_gen_f_loss, 
-                                        generator_f.trainable_variables)
-
-  discriminator_x_gradients = tape.gradient(disc_x_loss, 
-                                            discriminator_x.trainable_variables)
-
-  discriminator_y_gradients = tape.gradient(disc_y_loss, 
-                                            discriminator_y.trainable_variables)
-  
-  # 가중치 갱신
-
-  generator_g_optimizer.apply_gradients(zip(generator_g_gradients, 
-                                            generator_g.trainable_variables))
-
-  generator_f_optimizer.apply_gradients(zip(generator_f_gradients, 
-                                            generator_f.trainable_variables))
-
-  discriminator_x_optimizer.apply_gradients(zip(discriminator_x_gradients,
-                                                discriminator_x.trainable_variables))
-
-  discriminator_y_optimizer.apply_gradients(zip(discriminator_y_gradients,
-                                                discriminator_y.trainable_variables))
-    
-  return total_gen_g_loss
+  return gen_total_loss
 
 
-# In[48]:
-
-
-def cal_g_loss(real_x, real_y, generator_g, generator_f, discriminator_x, discriminator_y):
-  # persistent is set to True because the tape is used more than
-  # once to calculate the gradients.
-  with tf.GradientTape(persistent=True) as tape:
-    # Generator G 는 X -> Y 로 변환
-    # Generator F 는 Y -> X 로 변환
-
-
-    fake_y = generator_g(real_x, training=True)
-
-    cycled_x = generator_f(fake_y, training=True)
-
-    fake_x = generator_f(real_y, training=True)
-
-    cycled_y = generator_g(fake_x, training=True)
-
-    # same_x & same_y 는 "생성된 이미지 -> 원래 이미지"의 복원 가능성 손실 계산에 이용됨.
-    same_x = generator_f(real_x, training=True)
-
-    same_y = generator_g(real_y, training=True)
-
-
-    
-    disc_real_x = discriminator_x(real_x, training=True)
-
-    disc_real_y = discriminator_y(real_y, training=True)
-
-
-    disc_fake_x = discriminator_x(fake_x, training=True)
-
-    disc_fake_y = discriminator_y(fake_y, training=True)
-
-
-    # 해당 손실 연산
-    gen_g_loss = generator_loss(disc_fake_y)
-    gen_f_loss = generator_loss(disc_fake_x)
-    
-    total_cycle_loss = calc_cycle_loss(real_x, cycled_x) + calc_cycle_loss(real_y, cycled_y)
-    
-    # 총합 손실 연산 (Generator_g의 역함수 Generator_f에 대한 손실 계산 삭제)
-    total_gen_g_loss = gen_g_loss + total_cycle_loss# + identity_loss(real_y, same_y)
-  return total_gen_g_loss
-
-
-# In[32]:
+# In[86]:
 
 
 '''train_x = []
@@ -680,7 +518,7 @@ for i in filelist:
   train_y.append(i.outp)'''
 
 
-# In[33]:
+# In[87]:
 
 
 from random import sample
@@ -700,22 +538,26 @@ def sampling_list(a, b, batch):
   return g, h
 
 
-# In[39]:
+# In[88]:
 
 
 from random import sample
 #filelist.append(imagedata(PATH_DIR + str(i)))
 def sampling_batch(fl, b):
-    pd='./Dataset/'
-    g = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
-    h = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
-    for i in sample(fl,b):
-        g = np.append(g, imagedata(pd+str(i)).inp[np.newaxis], axis=0)
-        h = np.append(h, imagedata(pd+str(i)).outp[np.newaxis], axis=0)
-    return g, h
+    #while True :
+        #try :
+            pd='./Dataset/'
+            g = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
+            h = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
+            for i in sample(fl,b):
+                g = np.append(g, imagedata(pd+str(i)).inp[np.newaxis], axis=0)
+                h = np.append(h, imagedata(pd+str(i)).outp[np.newaxis], axis=0)
+            return g, h
+        #except :
+            #continue
 
 
-# In[ ]:
+# In[89]:
 
 
 '''train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
@@ -746,7 +588,7 @@ for i in filelist:
     '''
 
 
-# In[35]:
+# In[90]:
 
 
 def readago():
@@ -764,7 +606,7 @@ def readago():
     return losstrainlist, losstestlist
 
 
-# In[50]:
+# In[91]:
 
 
 def drawlossg(ll1, ll2, epoch):
@@ -781,7 +623,7 @@ def drawlossg(ll1, ll2, epoch):
     plt.show()
 
 
-# In[37]:
+# In[92]:
 
 
 def saveloss(epoch, loss1, loss2):
@@ -791,7 +633,7 @@ def saveloss(epoch, loss1, loss2):
     return loss1.numpy(), loss2.numpy()
 
 
-# In[38]:
+# In[93]:
 
 
 PATH_DIR='./testinput/'
@@ -812,7 +654,7 @@ for i in testlist:
   test_y.append(i.outp)
 
 
-# In[52]:
+# In[94]:
 
 
 
@@ -847,10 +689,11 @@ for epoch in range(EPOCHS):
   #a, b = sampling_list(train_x, train_y, BATCH_SIZE)
   print("{0}번째 데이터셋 샘플링 시작".format(epoch+cepoch+1))
   a, b = sampling_batch(filelist, BATCH_SIZE)
-  c, d = sampling_list(test_x, test_y, 3)
+  c, d = sampling_list(test_x, test_y, 1)
   print("{0}번째 학습 시작".format(epoch+cepoch+1))
-  losstrain = train_step(a, b)
-  losstest = cal_g_loss(c, d, generator_g, generator_f, discriminator_x, discriminator_y)
+  for n in range(0, BATCH_SIZE):
+      losstrain = train_step(a[n][np.newaxis], b[n][np.newaxis])
+  losstest = cal_g_loss(c, d, generator, discriminator)
   print("{0}번째 학습 완료".format(epoch+cepoch+1))
   loss1, loss2 = saveloss(epoch+cepoch+1, losstrain, losstest)
   losstrainlist.append(loss1)
@@ -873,23 +716,24 @@ for epoch in range(EPOCHS):
   # Using a consistent image (sample_summer) so that the progress of the model
   # is clearly visible.
   #print("=================================={0}번째 학습 이미지 비교================================".format(epoch+cepoch+1))
-  #generate_images_r(generator_g, a[0], b[0])
+  #generate_images_r(generator, a[0], b[0])
   print("=================================={0}번째 테스트 이미지 비교================================".format(epoch+cepoch+1))
-  generate_images_r(generator_g, c[0], d[0])
+  generate_images_r(generator, c[0], d[0])
   print("=================================={0}번째 손실 그래프================================".format(epoch+cepoch+1))
   drawlossg(losstrainlist, losstestlist, epoch+cepoch+1)
-  if loss2 - losstestlist[-2] >= 0:
-    print("{0}번째 손실 : {1} [+{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
-  else :
-    print("{0}번째 손실 : {1} [{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
+  try :
+    if loss2 - losstestlist[-2] >= 0:
+      print("{0}번째 손실 : {1} [+{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
+    else :
+      print("{0}번째 손실 : {1} [{2}]".format(epoch+cepoch+1, loss2, loss2 - losstestlist[-2]))
+  except:
+    print("{0}번째 손실 : {1}".format(epoch+cepoch+1, loss2))
 
-  if (epoch + 1) % 5 == 0:
+  if (epoch+cepoch+1) % 10 == 0:
     try :
-      ckpt_save_path = ckpt_manager.save()
+      checkpoint.save(file_prefix = checkpoint_prefix)
     except :
       pass
-    print ('Saving checkpoint for epoch {} at {}'.format(epoch+cepoch+1,
-                                                         ckpt_save_path))
 
 
 # ## (12) 테스트 데이터에서 몇개를 추출하여 변환 테스트
@@ -916,39 +760,15 @@ print("discriminator_y 저장 완료")
 # In[ ]:
 
 
-def get_config(self):
-
-        config = super().get_config().copy()
-        config.update({
-            'vocab_size': self.vocab_size,
-            'num_layers': self.num_layers,
-            'units': self.units,
-            'd_model': self.d_model,
-            'num_heads': self.num_heads,
-            'dropout': self.dropout,
-        })
-        return config
-
-
-# In[ ]:
-
-
-modelaa = tf.keras.models.Sequential()
-modelaa = tf.keras.models.load_model('./saved_model/generator_g.h5')
-generate_images_r(modelaa, train_x[0], train_y[0])
-
-
-# In[ ]:
-
-
 model = tf.keras.models.load_model('saved_model/generator_g')
 generate_images_r(model, train_x[0], train_y[0])
 
 
-# In[ ]:
+# In[54]:
 
 
-
+generator.save('saved_model/generator.h5')
+discriminator.save('saved_model/discriminator.h5')
 
 
 # In[ ]:
