@@ -1,32 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# # < CycleGAN - Summer To Winter >
+# # < Project Gaea 인공 신경망 >
 # 
-# 이 프로젝트는 CycleGAN을 통하여 여름 풍경 사진을 겨울 풍경 사진으로 변환하는 프로젝트입니다.
+# Project Gaea에서 핵심 역할을 하는 인공 신경망 학습 코드입니다.
 
-# In[ ]:
+# ## (1) import
 
-
-get_ipython().system('pip install --upgrade tensorflow')
-
-
-# In[ ]:
-
-
-get_ipython().system('pip install h5py pyyaml')
-
-
-# ## (1) 데이터셋 다운로드
-
-# In[1]:
+# In[66]:
 
 
 import tensorflow as tf
 print(tf.__version__)
 
 
-# In[2]:
+# In[96]:
 
 
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -48,20 +36,17 @@ import cv2
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
-# Tensorfow Dataset에서 summer2winter_yosemite 데이터 셋을 가져온 후, 분리한다.
-
-# In[59]:
+# In[97]:
 
 
-BUFFER_SIZE = 1000
 BATCH_SIZE = 20
 IMG_WIDTH = 256
 IMG_HEIGHT = 256
 
 
-# ## (2) 데이터셋 학습 전 준비 과정
+# ## (2) 데이터셋 전처리
 
-# In[60]:
+# In[98]:
 
 
 #이미지 주어진 크기에 따라 랜덤으로 분할,
@@ -72,7 +57,7 @@ def random_crop(image):
   return cropped_image
 
 
-# In[61]:
+# In[99]:
 
 
 # "-1 <= image <= 1" 로 변환
@@ -82,31 +67,24 @@ def normalize(image):
   return image
 
 
-# In[ ]:
-
-
-
-
-
-# In[62]:
+# In[100]:
 
 
 #이미지 변환 처리 중..
 def random_jitter(image):
   # resizing to 286 x 286 x 3
-  image = tf.image.resize(image, [286, 286],
-                          method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+  image = tf.image.resize(image, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
   # randomly cropping to 256 x 256 x 3
   image = random_crop(image)
 
   # random mirroring
-  image = tf.image.random_flip_left_right(image)
+  #image = tf.image.random_flip_left_right(image)
 
   return image
 
 
-# In[63]:
+# In[101]:
 
 
 def preprocess_image_train(image, label):
@@ -115,13 +93,7 @@ def preprocess_image_train(image, label):
   return image
 
 
-# In[ ]:
-
-
-
-
-
-# In[64]:
+# In[102]:
 
 
 def preprocess_image_test(image, label):
@@ -129,7 +101,7 @@ def preprocess_image_test(image, label):
   return image
 
 
-# In[65]:
+# In[103]:
 
 
 def preprocess_image_train_nl(image):
@@ -138,7 +110,7 @@ def preprocess_image_train_nl(image):
   return image
 
 
-# In[66]:
+# In[104]:
 
 
 class imagedata:
@@ -163,7 +135,7 @@ class imagedata:
     self.outp = preprocess_image_train_nl(self.outp)
 
 
-# In[67]:
+# In[105]:
 
 
 '''PATH_DIR='./Dataset/'
@@ -178,25 +150,22 @@ for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file
   print(str(i)+" 파일 로드 완료")'''
 
 
-# In[68]:
+# In[106]:
 
 
 PATH_DIR='./Dataset/'
 filelist = [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]
 
 
-# ## (3) 각 데이터셋의 첫 데이터를 띄운다.
+# ## (3) Pix2Pix 신경망 구성
 
-# ## (4) CycleGAN 신경망 구성
-# > https://subinium.github.io/introduction-to-normalization/ : 정규화에 대한 글
-
-# In[69]:
+# In[107]:
 
 
 OUTPUT_CHANNELS = 3
 
 
-# In[70]:
+# In[108]:
 
 
 def downsample(filters, size, apply_batchnorm=True):
@@ -215,7 +184,7 @@ def downsample(filters, size, apply_batchnorm=True):
   return result
 
 
-# In[71]:
+# In[109]:
 
 
 def upsample(filters, size, apply_dropout=False):
@@ -238,7 +207,7 @@ def upsample(filters, size, apply_dropout=False):
   return result
 
 
-# In[72]:
+# In[110]:
 
 
 def Generator():
@@ -292,13 +261,13 @@ def Generator():
   return tf.keras.Model(inputs=inputs, outputs=x)
 
 
-# In[73]:
+# In[111]:
 
 
 LAMBDA = 100
 
 
-# In[74]:
+# In[112]:
 
 
 def generator_loss(disc_generated_output, gen_output, target):
@@ -312,7 +281,7 @@ def generator_loss(disc_generated_output, gen_output, target):
   return total_gen_loss, gan_loss, l1_loss
 
 
-# In[75]:
+# In[113]:
 
 
 def Discriminator():
@@ -344,13 +313,13 @@ def Discriminator():
   return tf.keras.Model(inputs=[inp, tar], outputs=last)
 
 
-# In[76]:
+# In[114]:
 
 
 loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
-# In[77]:
+# In[115]:
 
 
 def discriminator_loss(disc_real_output, disc_generated_output):
@@ -363,11 +332,9 @@ def discriminator_loss(disc_real_output, disc_generated_output):
   return total_disc_loss
 
 
-# ## (5) 신경망 준비
-# *Generator* 함수 **G**와 **F**는 ***역함수*** 관계</br>
-# *Discriminator* 함수 **X**와 **Y**는 ***역함수*** 관계
+# ## (4) 신경망 준비
 
-# In[78]:
+# In[116]:
 
 
 generator = Generator()
@@ -377,9 +344,9 @@ generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
 
-# ## (9) 학습 준비
+# ## (5) 체크포인트
 
-# In[79]:
+# In[117]:
 
 
 checkpoint_dir = './training_checkpoints'
@@ -390,14 +357,16 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
                                  discriminator=discriminator)
 
 
-# In[80]:
+# ## (6) 학습 Setting
+
+# In[118]:
 
 
 #학습 횟수
 EPOCHS = 30000
 
 
-# In[81]:
+# In[119]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -420,12 +389,12 @@ def generate_images(model, test_input):
   plt.show()
 
 
-# In[82]:
+# In[134]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
-def generate_images_r(model, test_input, real_output):
-  prediction = model(test_input[np.newaxis])
+def generate_images_r(model, test_input, real_output, e=-1):
+  prediction = model(test_input[np.newaxis], training=True)
   test_input1 = cv2.resize(test_input[np.newaxis][0], dsize=(128, 192), interpolation=cv2.INTER_AREA)
   prediction1 = cv2.resize(np.array(prediction[0]), dsize=(128, 192), interpolation=cv2.INTER_AREA)
   plt.figure(figsize=(12, 12))
@@ -440,12 +409,13 @@ def generate_images_r(model, test_input, real_output):
     # getting the pixel values between [0, 1] to plot it.
     plt.imshow(display_list[i] * 0.5 + 0.5)
     plt.axis('off')
-
   
+  if e > -1 :
+    plt.savefig('genimage/Gen{0}.png'.format(e))
   plt.show()
 
 
-# In[83]:
+# In[135]:
 
 
 def sampling(train_x, train_y, batch_size) :
@@ -459,9 +429,9 @@ def sampling(train_x, train_y, batch_size) :
   return train_xb, train_yb
 
 
-# ## (10) 학습 함수 구성
+# ## (7) 학습 함수 구성
 
-# In[84]:
+# In[136]:
 
 
 @tf.function
@@ -488,7 +458,7 @@ def train_step(input_image, target):
   return gen_total_loss
 
 
-# In[85]:
+# In[137]:
 
 
 @tf.function
@@ -505,7 +475,7 @@ def cal_g_loss(input_image, target, generator, discriminator):
   return gen_total_loss
 
 
-# In[86]:
+# In[138]:
 
 
 '''train_x = []
@@ -518,7 +488,7 @@ for i in filelist:
   train_y.append(i.outp)'''
 
 
-# In[87]:
+# In[139]:
 
 
 from random import sample
@@ -538,14 +508,14 @@ def sampling_list(a, b, batch):
   return g, h
 
 
-# In[88]:
+# In[140]:
 
 
 from random import sample
 #filelist.append(imagedata(PATH_DIR + str(i)))
 def sampling_batch(fl, b):
-    #while True :
-        #try :
+    while True :
+        try :
             pd='./Dataset/'
             g = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
             h = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
@@ -553,11 +523,11 @@ def sampling_batch(fl, b):
                 g = np.append(g, imagedata(pd+str(i)).inp[np.newaxis], axis=0)
                 h = np.append(h, imagedata(pd+str(i)).outp[np.newaxis], axis=0)
             return g, h
-        #except :
-            #continue
+        except :
+            continue
 
 
-# In[89]:
+# In[141]:
 
 
 '''train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
@@ -588,7 +558,7 @@ for i in filelist:
     '''
 
 
-# In[90]:
+# In[142]:
 
 
 def readago():
@@ -606,7 +576,7 @@ def readago():
     return losstrainlist, losstestlist
 
 
-# In[91]:
+# In[143]:
 
 
 def drawlossg(ll1, ll2, epoch):
@@ -623,7 +593,7 @@ def drawlossg(ll1, ll2, epoch):
     plt.show()
 
 
-# In[92]:
+# In[144]:
 
 
 def saveloss(epoch, loss1, loss2):
@@ -633,13 +603,16 @@ def saveloss(epoch, loss1, loss2):
     return loss1.numpy(), loss2.numpy()
 
 
-# In[93]:
+# In[145]:
 
 
 PATH_DIR='./testinput/'
 testlist = []
-
+inputlist=[file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]
 for i in [file for file in os.listdir(PATH_DIR) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
+  if i in filelist :
+    print(str(i)+" 파일  Load fail")
+    continue
   try :
     testlist.append(imagedata(PATH_DIR + str(i)))
   except :
@@ -652,9 +625,11 @@ test_y = []
 for i in testlist:
   test_x.append(i.inp)
   test_y.append(i.outp)
+clear_output(wait=True)
+print("모든 테스트 이미지 로드 완료")
 
 
-# In[94]:
+# In[146]:
 
 
 
@@ -673,7 +648,7 @@ for i in range(2):
 plt.show()
 
 
-# ## (11) 학습 시작
+# ## (8) 학습 시작
 
 # In[ ]:
 
@@ -718,7 +693,7 @@ for epoch in range(EPOCHS):
   #print("=================================={0}번째 학습 이미지 비교================================".format(epoch+cepoch+1))
   #generate_images_r(generator, a[0], b[0])
   print("=================================={0}번째 테스트 이미지 비교================================".format(epoch+cepoch+1))
-  generate_images_r(generator, c[0], d[0])
+  generate_images_r(generator, c[0], d[0], e=epoch+cepoch+1)
   print("=================================={0}번째 손실 그래프================================".format(epoch+cepoch+1))
   drawlossg(losstrainlist, losstestlist, epoch+cepoch+1)
   try :
@@ -736,7 +711,7 @@ for epoch in range(EPOCHS):
       pass
 
 
-# ## (12) 테스트 데이터에서 몇개를 추출하여 변환 테스트
+# ## (9) Model 저장
 
 # In[ ]:
 
@@ -764,7 +739,7 @@ model = tf.keras.models.load_model('saved_model/generator_g')
 generate_images_r(model, train_x[0], train_y[0])
 
 
-# In[54]:
+# In[ ]:
 
 
 generator.save('saved_model/generator.h5')
