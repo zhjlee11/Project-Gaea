@@ -103,6 +103,17 @@
 					reader.readAsDataURL(file);
 				});  
 			});
+			
+			$(document).ready(function() {
+
+			  const $valueSpan = $('.valueSpan2');
+			  const $value = $('#customRange11');
+			  $valueSpan.html($value.val());
+			  $value.on('input change', () => {
+
+				$valueSpan.html($value.val());
+			  });
+			});
 		</script>
 		
 		{% if message %}
@@ -143,6 +154,13 @@
 					</div>
 				</div>
 			</div></div>
+			
+		  <div class="form-group">
+		  <div class="w-75">
+			<input type="range" style="width: 65%" class="custom-range" id="customRange11" name="customRange11" value="60" min="0" max="255">
+		  </div>
+		  투명화 감도 : <span class="font-weight-bold text-primary ml-2 valueSpan2"></span> &nbsp&nbsp(테스트 결과, 적정값 55~60)
+		  </div>
 
 		  <div class="form-group"><div class="form-check">
 			  <input class="form-check-input is-invalid" type="checkbox" value="on" id="agree" name="agree" required>
@@ -151,6 +169,7 @@
 			  </label>
 			  <div class="valid-feedback">동의 완료!</div>
 		  </div></div>
+		  
           <div class="row">
 			<div class="form-group" style="margin: 0 5px"><button type = "submit" class="btn btn-primary">변환 시작</button></div>
 			<div class="form-group" style="margin: 0 5px"><button type="button" onclick="location.href='/info'" class="btn btn-secondary">더 알아보기</button></div>

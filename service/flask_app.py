@@ -120,8 +120,10 @@ def upload_file(alert=None):
                 os.remove(path)
         except:
             pass
-        
+            
+        path = None        
         f = request.files['input-file-preview']
+        degree = int(request.form.get('customRange11'))
         gamename = request.form['gamename']
         agree = request.form.get('agree')
         if agree != 'on' :
@@ -152,9 +154,9 @@ def upload_file(alert=None):
         datas = img.getdata()
 
         newData = []
-         
+        print(degree)
         for item in datas:
-            if similar(item[0], pix[0]) and similar(item[1], pix[1]) and similar(item[2], pix[2]):
+            if similar(item[0], pix[0], d=degree) and similar(item[1], pix[1], d=degree) and similar(item[2], pix[2], d=degree):
                 newData.append((255, 255, 255, 0))
                 # RGB의 각 요소가 모두 cutOff 이상이면 transparent하게 바꿔줍니다.
             else:
