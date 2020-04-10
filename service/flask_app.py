@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+from PIL import Image
 
 app = Flask(__name__)
 app.secret_key = 'any random string'
@@ -25,7 +26,7 @@ def normalize(image):
     image = (image / 127.5) - 1
     return image
   
-def load_model(path='saved_model/generator_g'):
+def load_model(path='saved_model/generator.h5'):
     return tf.keras.models.load_model(path)
     
 def get_ip(e):
@@ -33,6 +34,14 @@ def get_ip(e):
     return e["HTTP_X_FORWARDED_FOR"].split(",")[0].strip()
   except (KeyError, IndexError):
     return e.get("REMOTE_ADDR")
+    
+def similar(n1, n2, d=60):
+    sn = abs(n1-n2)
+    if sn >= 0 and sn <= d :
+        return True
+    else :
+        return False
+  
     
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -44,7 +53,6 @@ def generate_images(test_input, predicted):
     for i in range(2):
         plt.subplot(1, 2, i+1)
         plt.title(title[i])
-        # getting the pixel values between [0, 1] to plot it.
         plt.imshow(display_list[i] * 0.5 + 0.5)
         plt.axis('off')
     plt.show()
@@ -54,15 +62,29 @@ class image_predict():
         self.model = model
         self.owidth = img.shape[1] * 4
         self.oheight = img.shape[0] * 4
-        self.oimg = cv2.resize(img, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+        inp2 = cv2.vconcat([img, img, img, img])
+        self.image = cv2.hconcat([inp2, inp2, inp2, inp2])
+        self.oimg = cv2.resize(self.image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
         self.image = normalize(self.oimg)
+
+        
     
     def predict(self):
-        pred = self.model(self.image[np.newaxis])
-        return cv2.resize(np.float32(pred[0]), dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
+        pred = np.array(self.model(self.image[np.newaxis])[0])*0.5+0.5
+        return cv2.resize(pred * 255, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
+    
+    def plt(self) :
+        generate_images(self.image,self.model(self.image[np.newaxis])[0])
+
 
 @app.route('/')
 def default_template():
+    try:
+        path = session['saved_image']
+        if path != None:
+            os.remove(path)
+    except:
+        pass
     return render_template('main.html')
     
 @app.route('/info')
@@ -92,7 +114,12 @@ def upload_file(alert=None):
     except:
         pass
     if request.method == 'POST':
-        
+        try:
+            path = session['saved_image']
+            if path != None:
+                os.remove(path)
+        except:
+            pass
         
         f = request.files['input-file-preview']
         gamename = request.form['gamename']
@@ -111,13 +138,32 @@ def upload_file(alert=None):
         except:
             alert = "비어있는 파일"
             return render_template('upload.html', message=alert)
-        img = cv2.imread("./data/" + secure_filename(f.filename), 3)
-        rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        imgp = image_predict(get_model(), rgb_image)
-        
+        imga = cv2.imread("./data/" + secure_filename(f.filename))
+        imgp = image_predict(get_model(), imga)
         path = './converteddata/'+secure_filename(f.filename)
-        predicted_image = cv2.convertScaleAbs(imgp.predict(), alpha=(255.0))
+        predicted_image = imgp.predict()
         cv2.imwrite(path, predicted_image)
+        
+        img = Image.open(path)
+
+        pix = np.array(img)[0][0]
+
+        img = img.convert("RGBA")
+        datas = img.getdata()
+
+        newData = []
+         
+        for item in datas:
+            if similar(item[0], pix[0]) and similar(item[1], pix[1]) and similar(item[2], pix[2]):
+                newData.append((255, 255, 255, 0))
+                # RGB의 각 요소가 모두 cutOff 이상이면 transparent하게 바꿔줍니다.
+            else:
+                newData.append(item)
+                # 나머지 요소는 변경하지 않습니다.
+         
+        img.putdata(newData)
+        img.save(path, "PNG") # PNG 포맷으로 저장합니다.
+        
         session['saved_image'] = path
         
         if agree == 'on':
