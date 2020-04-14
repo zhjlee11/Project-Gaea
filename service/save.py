@@ -1,8 +1,10 @@
 import tensorflow as tf
-import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import os
+from PIL import Image
+import datetime
+
 
 
 def normalize(image):
@@ -13,18 +15,6 @@ def normalize(image):
 def load_model(path='saved_model/generator.h5'):
     return tf.keras.models.load_model(path)
 
-#이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
-def generate_images(test_input, predicted):
-    plt.figure(figsize=(12, 12))
-
-    display_list = [test_input, predicted]
-    title = ['Input Image', 'Predicted Image']
-    for i in range(2):
-        plt.subplot(1, 2, i+1)
-        plt.title(title[i])
-        plt.imshow(display_list[i] * 0.5 + 0.5)
-        plt.axis('off')
-    plt.show()
     
 def similar(n1, n2, d=60):
     sn = abs(n1-n2)
@@ -32,9 +22,12 @@ def similar(n1, n2, d=60):
         return True
     else :
         return False
-  
+
+      
 class image_predict():
-    def __init__(self, model, img):
+    def __init__(self, model, path, imn, degree=60, temppath='tempimage'):
+        img = cv2.imread(path + "/" + imn)
+        self.degree = degree
         self.model = model
         self.owidth = img.shape[1] * 4
         self.oheight = img.shape[0] * 4
@@ -43,55 +36,102 @@ class image_predict():
         self.oimg = cv2.resize(self.image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
         self.image = normalize(self.oimg)
         self.pred = None
+        self.imn = imn
+        self.temppath = temppath
 
     def predict(self):
-        pred = self.model(self.image[np.newaxis])
-        self.pred = cv2.resize(np.float32(pred[0]) * 0.5 + 0.5, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
-        return self.pred
-    
-    def plt(self) :
-        generate_images(self.image,self.model(self.image[np.newaxis])[0])
+        pred = np.array(self.model(self.image[np.newaxis])[0])*0.5+0.5
+        self.pred =  cv2.resize(pred * 255, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
         
-    def save(self):
-        #if self.pred.all() == None:
-            #self.predict()
-        predi = np.array(self.model(self.image[np.newaxis])[0])*0.5+0.5
-        cv2.imwrite('./converteddata/input.png', self.oimg)
-        cv2.imwrite('./converteddata/pred.png', 255*predi)
-        print(predi.shape)
-        print("Save 완료")
+        #self.pred = (self.pred * 255 / np.max(self.pred*255)).astype('uint8')
+        
+        cv2.imwrite(self.temppath + "/"+self.imn, self.pred)
+        
+        img = Image.open(self.temppath + "/"+self.imn)
+        try: 
+            os.remove(self.temppath + "/"+self.imn)
+        except:
+            pass
+        pix = np.array(img)[0][0]
+        
+        img = img.convert("RGBA")
+        datas = img.getdata()
+        newData = []
+        for item in datas:
+            if similar(item[0], pix[0], d=self.degree) and similar(item[1], pix[1], d=self.degree) and similar(item[2], pix[2], d=self.degree):
+                newData.append((255, 255, 255, 0))
+            else:
+                newData.append(item)
+        img.putdata(newData)
+        self.pred = img
+        return self.pred
+        
+def reset(path):
+    for j in [file for file in os.listdir(path) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
+        try: 
+            os.remove(path + "/" + j)
+        except:
+            pass
+            
+def savelog(path, index, lic="normal"):
+    f = open(path + "/log.titan", 'w')
+    f.write(
+    '''Titan Program Log
 
-	
+convert index : {0}
+license : {1}
+convertday : {2}
+'''.format(index, lic, datetime.datetime.today().strftime('%Y-%m-%d'))
+    )
+    f.close()
+    
+def deletelog(path):
+    try:
+        os.remove(path+'/log.titan')
+    except:
+        pass
+    
+def checklog(path):
+    try :
+        f = open(path + "/log.titan", 'r')
+        num = f.readlines()[2].split("convert index : ")[-1].split("\n")[0]
+        f.close()
+        return num
+    except:
+        return -1
 
-'''
-img = cv2.imread("inputtest.png")
-#rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-imgp = image_predict(load_model(), img)
-#imgp.plt()
-#predicted_image = cv2.convertScaleAbs(imgp.predict(), alpha=(255.0))
-#predicted_image = imgp.predict()
-imgp.save()
+def convert(model, ipath, opath, degree, series=-1):
+    if series == -1 :
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
+        for i, file in enumerate(ilist):
+            image_predict(model, ipath,  str(file), degree=degree).predict().save(opath + "/"+str(file)) 
+            savelog(opath, i)
+            reset('tempimage')
+        deletelog(opath)
+        return
+    else :
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])[int(series)+1:]
+        for i, file in enumerate(ilist):
+            image_predict(model, ipath,  str(file), degree=degree).predict().save(opath + "/"+str(file)) 
+            savelog(opath, i)
+            reset('tempimage')
+        deletelog(opath)
+        return
+        
+def convertI(model, ipath, opath, degree):
+    num = checklog(opath)
+    if num == -1:
+        convert(model, ipath, opath, degree)
+    else :
+        convert(model, ipath, opath, degree, series=num)
 
-'''
+    
 
-
-from PIL import Image
-img = Image.open('./converteddata/pred.png')
-
-pix = np.array(img)[0][0]
-
-img = img.convert("RGBA")
-datas = img.getdata()
-
-newData = []
  
-for item in datas:
-    if similar(item[0], pix[0]) and similar(item[1], pix[1]) and similar(item[2], pix[2]):
-        newData.append((255, 255, 255, 0))
-        # RGB의 각 요소가 모두 cutOff 이상이면 transparent하게 바꿔줍니다.
-    else:
-        newData.append(item)
-        # 나머지 요소는 변경하지 않습니다.
- 
-img.putdata(newData)
-img.save("./converteddata/transparent.png", "PNG") # PNG 포맷으로 저장합니다.
+model = load_model()
+ipath = 'F:/KaliNode/programming/Project-Gaea/Project-Gaea/service'
+opath = 'F:/KaliNode/programming/Project-Gaea/Project-Gaea/service/converteddata'
+convertI(model, ipath, opath, 60)
+
+
+#image_predict(load_model(), '',  "inputtest.png").predict().save("./converteddata/transparent.png", "PNG") 
