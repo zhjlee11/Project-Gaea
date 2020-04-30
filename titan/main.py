@@ -7,6 +7,7 @@ import os
 import datetime
 import socket
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QTimer, Qt
 import smtplib
@@ -19,11 +20,13 @@ def normalize(image):
     image = (image / 127.5) - 1
     return image
   
-def load_model(path='saved_model/generator.h5'):
-    return tf.keras.models.load_model(path)
+def load_model():
+    return tf.saved_model.load(os.path.join(os.getcwd(), 'saved_model', 'generator_g'))
 
     
 def similar(n1, n2, d=60):
+    if d == -1:
+        return False
     sn = abs(n1-n2)
     if sn >= 0 and sn <= d :
         return True
@@ -195,11 +198,14 @@ class Titan(QMainWindow):
         self.index = 0
         self.username = ""
         self.gamename = ""
+        self.w = 600
+        self.h = 400
         self.initUI()
+     
 
     def initUI(self):
         self.setWindowTitle('Titan')
-        self.setGeometry(300, 300, 800, 600)
+        self.setGeometry(50, 50, self.w, self.h)
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         ipaddress=socket.gethostbyname(socket.gethostname())
@@ -213,6 +219,7 @@ class Titan(QMainWindow):
         try :
             tfver = tf.__version__
             self.model = load_model()
+            print(list(self.model.signatures["serving_default"].structured_outputs))
         except :
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -220,7 +227,12 @@ class Titan(QMainWindow):
             sys.exit()
 
 
+        self.setWindowIcon(QIcon('resource/logopng.png'))
 
+        self.lbl = QLabel(self)
+        self.lbl.resize(self.w,300)
+        pixmap = QPixmap("resource/logo_title.png")
+        self.lbl.setPixmap(QPixmap(pixmap))
         
                   
         selectinput = QPushButton('&변환할 이미지가 있는 폴더를 선택하세요')
@@ -255,13 +267,13 @@ class Titan(QMainWindow):
 
         self.degreeslider = QSlider(Qt.Horizontal)
         self.degreeslider.setMaximum(255)
-        self.degreeslider.setMinimum(0)
+        self.degreeslider.setMinimum(-1)
         self.degreeslider.setSingleStep(1)
         self.degreeslider.setPageStep(10)
         self.degreeslider.setValue(55)
         self.degreeslider.valueChanged.connect(self.changeslider)
         
-        self.degreeslidertext = QLabel("투명화 감도 : " + str(self.degreeslider.value()))
+        self.degreeslidertext = QLabel("투명화 감도(-1은 투명화 없음) : " + str(self.degreeslider.value()))
         
         degreela = QHBoxLayout()
         degreela.addWidget(self.degreeslider)
@@ -277,6 +289,7 @@ class Titan(QMainWindow):
         
         
         layout = QVBoxLayout()
+        layout.addWidget(self.lbl)
         layout.addLayout(grid)
         layout.addLayout(inpgrid)
         layout.addLayout(degreela)
@@ -318,39 +331,34 @@ class Titan(QMainWindow):
             ret.information(self, "정보", "저장할 폴더를 선택하지 않으셨습니다.")
             return
 
-        try:
-            model = self.model
-            ipath = str(self.inputp)
-            opath = str(self.outputp)
-            degree = int(self.degreeslider.value())
+        model = self.model
+        ipath = str(self.inputp)
+        opath = str(self.outputp)
+        degree = int(self.degreeslider.value())
             
-            self.maxindex = len([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
-            self.convertpro.setMaximum(self.maxindex)
+        self.maxindex = len([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
+        self.convertpro.setMaximum(self.maxindex)
             
-            num = checklog(opath)
-            if num == -1:
+        num = checklog(opath)
+        if num == -1:
+            convertimage(model, ipath, opath, degree, self)
+            filen = self.convertpro
+        else :
+            filen = self.convertpro
+            res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
+            if res == QMessageBox.Yes :
+                self.convertpro.setValue(int(num)+1)
+                filen = self.maxindex-int(num)-1
+                convertimage(model, ipath, opath, degree, self, series=num)
+            elif res == QMessageBox.No :
                 convertimage(model, ipath, opath, degree, self)
-                filen = self.convertpro
             else :
-                filen = self.convertpro
-                res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
-                if res == QMessageBox.Yes :
-                    self.convertpro.setValue(int(num)+1)
-                    filen = self.maxindex-int(num)-1
-                    convertimage(model, ipath, opath, degree, self, series=num)
-                elif res == QMessageBox.No :
-                    convertimage(model, ipath, opath, degree, self)
-                else :
-                    convertimage(model, ipath, opath, degree, self)
+                convertimage(model, ipath, opath, degree, self)
                     
-            ret = QMessageBox()
-            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-            ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
-        except:
-            ret = QMessageBox()
-            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-            ret.critical(self, "에러", "예상하지 못한 문제로 변환이 정지되었습니다.")
-            sys.exit()
+        ret = QMessageBox()
+        ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
+
                 
     def changeslider(self):
         self.degreeslidertext.setText("투명화 감도 : " + str(self.degreeslider.value()))
