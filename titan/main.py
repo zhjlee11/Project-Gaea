@@ -15,16 +15,58 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
+
+BATCH_SIZE = 20
+IMG_WIDTH = 256
+IMG_HEIGHT = 256
+
+def random_crop(image, c=3):
+  cropped_image = tf.image.random_crop(
+      image, size=[IMG_HEIGHT, IMG_WIDTH, c])
+
+  return cropped_image
+
 def normalize(image):
-    image = tf.cast(image, tf.float32)
-    image = (image / 127.5) - 1
-    return image
+  image = tf.cast(image, tf.float32)
+  image = (image / 127.5) - 1
+  return image
+
+def random_jitter(image, c=3):
+  # resizing to 286 x 286 x 3
+  image = tf.image.resize(image, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+  # randomly cropping to 256 x 256 x 3
+  image = random_crop(image, c=c)
+
+  # random mirroring
+  #image = tf.image.random_flip_left_right(image)
+
+  return image
+
+def preprocess_image_train(image, label):
+  image = random_jitter(image)
+  image = normalize(image)
+  return image
+
+
+def preprocess_image_test(image, label):
+  image = normalize(image)
+  return image
+
+def preprocess_image_test_nl(image):
+  image = normalize(image)
+  return image
+
+def preprocess_image_train_nl(image, c=3):
+  image = random_jitter(image, c=c)
+  image = normalize(image)
+  return image
   
 def load_model():
-    return tf.saved_model.load(os.path.join(os.getcwd(), 'saved_model', 'generator_g'))
+    return tf.keras.models.load_model(os.path.join(os.getcwd(), 'saved_model', 'generator4.h5'))
 
     
-def similar(n1, n2, d=60):
+def similar(n1, n2, d=0):
     if d == -1:
         return False
     sn = abs(n1-n2)
@@ -34,36 +76,13 @@ def similar(n1, n2, d=60):
         return False
 
 class image_predict():
-    def __init__(self, model, path, imn, degree=60, temppath='tempimage'):
-        img = cv2.imread(path + "/" + imn)
+    def __init__(self, model, path, imn, degree=0):
         self.degree = degree
         self.model = model
-        self.owidth = img.shape[1] * 4
-        self.oheight = img.shape[0] * 4
-        inp2 = cv2.vconcat([img, img, img, img])
-        self.image = cv2.hconcat([inp2, inp2, inp2, inp2])
-        self.oimg = cv2.resize(self.image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
-        self.image = normalize(self.oimg)
-        self.pred = None
-        self.imn = imn
-        self.temppath = temppath
-
-    def predict(self):
-        pred = np.array(self.model(self.image[np.newaxis])[0])*0.5+0.5
-        self.pred =  cv2.resize(pred * 255, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
         
-        #self.pred = (self.pred * 255 / np.max(self.pred*255)).astype('uint8')
+        img = Image.open(path + "/" + imn).convert("RGBA")
         
-        cv2.imwrite(self.temppath + "/"+self.imn, self.pred)
-        
-        img = Image.open(self.temppath + "/"+self.imn)
-        try: 
-            os.remove(self.temppath + "/"+self.imn)
-        except:
-            pass
         pix = np.array(img)[0][0]
-        
-        img = img.convert("RGBA")
         datas = img.getdata()
         newData = []
         for item in datas:
@@ -72,7 +91,28 @@ class image_predict():
             else:
                 newData.append(item)
         img.putdata(newData)
-        self.pred = img
+        img = np.array(img)
+        
+        
+        self.owidth = img.shape[1] * 4
+        self.oheight = img.shape[0] * 4
+        
+        inp2 = cv2.vconcat([img, img, img, img])
+        self.image = cv2.hconcat([inp2, inp2, inp2, inp2])
+        
+        self.oimg = cv2.resize(self.image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
+        self.image = preprocess_image_train_nl(self.oimg, c=4)
+        
+               
+        self.pred = None
+        self.imn = imn
+        
+        
+
+    def predict(self):
+        pred = np.array(self.model(self.image[np.newaxis], training=True)[0]*0.5+0.5)
+        self.pred =  cv2.resize(pred * 255, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
+        self.pred = cv2.cvtColor(self.pred, cv2.COLOR_BGR2RGBA)
         return self.pred
         
 def reset(path):
@@ -147,19 +187,19 @@ def sendmail(ep, inp, outp, username, gamename):
     s.sendmail('zhjleeb@gmail.com', ['zhjlee1@daum.net'], msg.as_string())
     s.quit()
 
-def convertimage(model, ipath, opath, degree, counter, series=-1):
+def convertimage(model, ipath, opath, counter, series=-1):
     if series == -1 :
         ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
         for i, file in enumerate(ilist):
-            try :
-                image_predict(model, ipath,  str(file), degree=degree).predict().save(opath + "/"+str(file)) 
-            except:
-                counter.maxindex -= 1
-                pass
+            #try :
+                #image_predict(model, ipath,  str(file)).predict().save(opath + "/"+str(file)) 
+            cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
+            #except:
+                #counter.maxindex -= 1
+                #pass
             savelog(opath, i)
             counter.convertpro.setValue(i+1)
             counter.convertpro.update()
-            reset('tempimage')
             if i % 30 == 0:
                 sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
         deletelog(opath)
@@ -169,14 +209,13 @@ def convertimage(model, ipath, opath, degree, counter, series=-1):
         ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])[int(series)+1:]
         for i, file in enumerate(ilist):
             try :
-                image_predict(model, ipath,  str(file), degree=degree).predict().save(opath + "/"+str(file)) 
+                cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath, str(file)).predict())
             except:
                 counter.maxindex -= 1
                 pass
             savelog(opath, i+int(series)+1)
             counter.convertpro.setValue(i+int(series)+1+1)
             counter.convertpro.update()
-            reset('tempimage')
             if i % 30 == 0:
                 sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
         deletelog(opath)
@@ -218,8 +257,8 @@ class Titan(QMainWindow):
 
         try :
             tfver = tf.__version__
+            tf.data.experimental.AUTOTUNE
             self.model = load_model()
-            print(list(self.model.signatures["serving_default"].structured_outputs))
         except :
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -265,6 +304,7 @@ class Titan(QMainWindow):
         inpgrid.addWidget(inpgametext, 1, 0)
         inpgrid.addWidget(self.inpgame, 1, 1)
 
+        '''
         self.degreeslider = QSlider(Qt.Horizontal)
         self.degreeslider.setMaximum(255)
         self.degreeslider.setMinimum(-1)
@@ -278,7 +318,7 @@ class Titan(QMainWindow):
         degreela = QHBoxLayout()
         degreela.addWidget(self.degreeslider)
         degreela.addWidget(self.degreeslidertext)
-           
+        '''
         convertb = QPushButton('&변환 시작')
         convertb.clicked.connect(self.convertstart)
         
@@ -292,7 +332,7 @@ class Titan(QMainWindow):
         layout.addWidget(self.lbl)
         layout.addLayout(grid)
         layout.addLayout(inpgrid)
-        layout.addLayout(degreela)
+        #layout.addLayout(degreela)
         layout.addWidget(convertb)
         layout.addWidget(self.convertpro)
  
@@ -334,14 +374,14 @@ class Titan(QMainWindow):
         model = self.model
         ipath = str(self.inputp)
         opath = str(self.outputp)
-        degree = int(self.degreeslider.value())
+        #degree = int(self.degreeslider.value())
             
         self.maxindex = len([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
         self.convertpro.setMaximum(self.maxindex)
             
         num = checklog(opath)
         if num == -1:
-            convertimage(model, ipath, opath, degree, self)
+            convertimage(model, ipath, opath, self)
             filen = self.convertpro
         else :
             filen = self.convertpro
@@ -349,20 +389,16 @@ class Titan(QMainWindow):
             if res == QMessageBox.Yes :
                 self.convertpro.setValue(int(num)+1)
                 filen = self.maxindex-int(num)-1
-                convertimage(model, ipath, opath, degree, self, series=num)
+                convertimage(model, ipath, opath, self, series=num)
             elif res == QMessageBox.No :
-                convertimage(model, ipath, opath, degree, self)
+                convertimage(model, ipath, opath, self)
             else :
-                convertimage(model, ipath, opath, degree, self)
+                convertimage(model, ipath, opath, self)
                     
         ret = QMessageBox()
         ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
 
-                
-    def changeslider(self):
-        self.degreeslidertext.setText("투명화 감도 : " + str(self.degreeslider.value()))
-        
     def selectInput(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ShowDirsOnly
