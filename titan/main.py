@@ -1,6 +1,7 @@
+from multiprocessing import Queue
+
 import sys
 import tensorflow as tf
-from PIL import Image
 import numpy as np
 import cv2
 import os
@@ -14,54 +15,22 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
+import requests
+from bs4 import BeautifulSoup
 
 
-BATCH_SIZE = 20
+
+
 IMG_WIDTH = 256
 IMG_HEIGHT = 256
 
-def random_crop(image, c=3):
-  cropped_image = tf.image.random_crop(
-      image, size=[IMG_HEIGHT, IMG_WIDTH, c])
 
-  return cropped_image
 
 def normalize(image):
-  image = tf.cast(image, tf.float32)
-  image = (image / 127.5) - 1
-  return image
-
-def random_jitter(image, c=3):
-  # resizing to 286 x 286 x 3
-  image = tf.image.resize(image, [256, 256], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-
-  # randomly cropping to 256 x 256 x 3
-  image = random_crop(image, c=c)
-
-  # random mirroring
-  #image = tf.image.random_flip_left_right(image)
-
-  return image
-
-def preprocess_image_train(image, label):
-  image = random_jitter(image)
-  image = normalize(image)
-  return image
-
-
-def preprocess_image_test(image, label):
-  image = normalize(image)
-  return image
-
-def preprocess_image_test_nl(image):
-  image = normalize(image)
-  return image
-
-def preprocess_image_train_nl(image, c=3):
-  image = random_jitter(image, c=c)
-  image = normalize(image)
-  return image
-  
+    image = tf.cast(image, tf.float32)
+    image = (image / 127.5) - 1
+    return image
+    
 def load_model():
     return tf.keras.models.load_model(os.path.join(os.getcwd(), 'saved_model', 'generator4.h5'))
 
@@ -80,18 +49,17 @@ class image_predict():
         self.degree = degree
         self.model = model
         
-        img = Image.open(path + "/" + imn).convert("RGBA")
+        img = cv2.imread(path + "/" + imn, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
         
         pix = np.array(img)[0][0]
-        datas = img.getdata()
-        newData = []
-        for item in datas:
-            if similar(item[0], pix[0], d=self.degree) and similar(item[1], pix[1], d=self.degree) and similar(item[2], pix[2], d=self.degree):
-                newData.append((255, 255, 255, 0))
-            else:
-                newData.append(item)
-        img.putdata(newData)
-        img = np.array(img)
+        for i in range(0, img.shape[0]):
+            for j in range(0, img.shape[1]):
+                item = np.array(img)[i][j]
+                if item[0]==pix[0] and item[1]==pix[1] and item[2]==pix[2]:
+                    img[i][j] = [255, 255, 255, 0]
+                else:
+                    continue
         
         
         self.owidth = img.shape[1] * 4
@@ -101,7 +69,8 @@ class image_predict():
         self.image = cv2.hconcat([inp2, inp2, inp2, inp2])
         
         self.oimg = cv2.resize(self.image, dsize=(256, 256), interpolation=cv2.INTER_AREA)
-        self.image = preprocess_image_train_nl(self.oimg, c=4)
+        
+        self.image = normalize(self.oimg)
         
                
         self.pred = None
@@ -110,9 +79,17 @@ class image_predict():
         
 
     def predict(self):
+        #self.model.allocate_tensors()
+        #self.model.set_tensor(self.model.get_input_details()[0]['index'], self.image[np.newaxis])
+        #self.model.invoke()
+        #pred = np.array(self.model.get_tensor(self.model.get_output_details()[0]['index'])[0]*0.5+0.5)
+        
+        
+        
         pred = np.array(self.model(self.image[np.newaxis], training=True)[0]*0.5+0.5)
+        #pred = np.array(output_data[0]*0.5+0.5)
         self.pred =  cv2.resize(pred * 255, dsize=(self.owidth, self.oheight), interpolation=cv2.INTER_AREA)
-        self.pred = cv2.cvtColor(self.pred, cv2.COLOR_BGR2RGBA)
+        #self.pred = cv2.cvtColor(self.pred, cv2.COLOR_BGR2RGBA)
         return self.pred
         
 def reset(path):
@@ -191,17 +168,19 @@ def convertimage(model, ipath, opath, counter, series=-1):
     if series == -1 :
         ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
         for i, file in enumerate(ilist):
-            #try :
-                #image_predict(model, ipath,  str(file)).predict().save(opath + "/"+str(file)) 
-            cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
-            #except:
-                #counter.maxindex -= 1
-                #pass
+            try :
+                cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
+            except:
+                counter.maxindex -= 1
+                pass
             savelog(opath, i)
             counter.convertpro.setValue(i+1)
             counter.convertpro.update()
             if i % 30 == 0:
-                sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
+                try: 
+                    sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
+                except:
+                    pass
         deletelog(opath)
         return
     else :
@@ -217,7 +196,10 @@ def convertimage(model, ipath, opath, counter, series=-1):
             counter.convertpro.setValue(i+int(series)+1+1)
             counter.convertpro.update()
             if i % 30 == 0:
-                sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
+                try: 
+                    sendmail(i+1, ipath+"/"+str(file), opath + "/"+str(file), counter.username, counter.gamename)
+                except:
+                    pass
         deletelog(opath)
         return
         
@@ -248,6 +230,18 @@ class Titan(QMainWindow):
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         ipaddress=socket.gethostbyname(socket.gethostname())
+        
+        
+        
+        res = requests.get('https://sites.google.com/view/gaea-version')
+        soup = BeautifulSoup(res.content, 'html.parser')
+        title = soup.find('h1', attrs = {'id': 'h.xh216tc7v0ru', 'dir':'ltr', 'class':'zfr3Q duRjpb'})
+        
+        if title.get_text() != "1.0.0":
+            ret = QMessageBox()
+            ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+            ret.critical(self, "정보", "최신버전이 아닙니다. 공식 홈페이지에서 최신버전을 다운받아 주세요.")
+            sys.exit()
 
         if ipaddress == "127.0.0.1":
             ret = QMessageBox()
@@ -256,8 +250,6 @@ class Titan(QMainWindow):
             sys.exit()
 
         try :
-            tfver = tf.__version__
-            tf.data.experimental.AUTOTUNE
             self.model = load_model()
         except :
             ret = QMessageBox()
@@ -382,9 +374,9 @@ class Titan(QMainWindow):
         num = checklog(opath)
         if num == -1:
             convertimage(model, ipath, opath, self)
-            filen = self.convertpro
+            filen = self.convertpro.value()
         else :
-            filen = self.convertpro
+            filen = self.convertpro.value()
             res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
             if res == QMessageBox.Yes :
                 self.convertpro.setValue(int(num)+1)
