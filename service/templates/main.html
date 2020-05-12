@@ -9,7 +9,7 @@
 		<meta property="og:type" content="website">
 		<meta property="og:title" content="Project Gaea">
 		<meta property="og:description" content="캐릭터 디자인의 새로운 패러다임을 제시합니다.">
-		<meta property="og:image" content="logopng.png">
+		<meta property="og:image" content="https://blogfiles.pstatic.net/MjAyMDA0MjFfMjU1/MDAxNTg3NDI0OTcyNDEy.GK67hwiSOKa3EEXrYuW0ZIUBHXP-OtxVwP8sfGOC5R0g.SjxnDltW6fQQPlyPK_l1JpCzAp73hnAnt7WcKTbIlkEg.PNG.zhjlee11/logopng.png">
 		
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/prefixfree/1.0.7/prefixfree.min.js"></script>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
@@ -18,7 +18,6 @@
 		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
 		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
 		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
-		
 
 		<style>
 			@import url(//fonts.googleapis.com/earlyaccess/nanumgothic.css);
@@ -123,21 +122,47 @@
 		<footer><h6 style="font-size: 0.7em;">백그라운드 캔버스 : <a href="https://codepen.io/towc/pen/YXGYJY" style="color: inherit;">https://codepen.io/towc/pen/YXGYJY</a></h6></footer>
 		
 		<script src='js/script.js'></script>
+        
 		<script type="text/javascript">
 		function goReplace(str) { location.replace(str); }
 		function checklicense() {
 			var con_test = confirm("Project Gaea 라이센스에 동의하십니까?\n[취소를 누를 시 라이센스 페이지로 이동합니다.]");
 			if(con_test == true){
-			  goReplace('https://files.cloud.naver.com/.fileLink/4sbC6MUPV%2Fa8R%2FGLN%2BWtfN3L759aJ3Aqo0ILTLDzHndoovs27xnK64CYcBcdn9MomBe7zOhtnoWF3Cxp7YNwhAk%3D/Setup.exe?authtoken=wGaaUKZR%2B65xf%2F2xjDcELQI%3D');
+
+
+              
+              var config = {
+                  apiKey: "AIzaSyBKT07cn7qKMD0AosTmMC5k37JEFkiCZMU",
+                  authDomain: "project-gaea-e5026.firebaseapp.com",
+                  databaseURL: "https://project-gaea-e5026.firebaseio.com",
+                  storageBucket:  "project-gaea-e5026.appspot.com",
+                  messagingSenderId: "G-R7SF2TH659"
+              };
+              firebase.initializeApp(config);
+
+              var fileName = "Setup (1).exe"
+              var storage = firebase.storage();
+              var pathReference = storage.ref(fileName);
+              pathReference.getDownloadURL().then(function(url) {
+              
+              goReplace(url)
+               });
+			  
 			}
 			else if(con_test == false){
 			  goReplace('/license.html');
 			}
 		}
-		
+
+
+        
+                
 		</script>
 		
 
 
 	</body>
+
+    <script src="https://www.gstatic.com/firebasejs/3.7.0/firebase.js"></script>
+
 </html>
