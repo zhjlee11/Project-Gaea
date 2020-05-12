@@ -1,3 +1,4 @@
+#-*- coding:utf-8 -*-
 from multiprocessing import Queue
 
 import sys
@@ -24,6 +25,30 @@ from bs4 import BeautifulSoup
 IMG_WIDTH = 256
 IMG_HEIGHT = 256
 
+def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
+    try:
+        n = np.fromfile(filename, dtype) 
+        img = cv2.imdecode(n, flags)
+        return img 
+    except Exception as e:
+        print(e) 
+        return None
+        
+def imwrite(filename, img, params=None): 
+    try:
+        ext = os.path.splitext(filename)[1] 
+        result, n = cv2.imencode(ext, img, params) 
+        if result: 
+            with open(filename, mode='w+b') as f: 
+                n.tofile(f) 
+                return True 
+        else: 
+            return False 
+    except Exception as e: 
+        print(e) 
+        return False
+
+
 
 
 def normalize(image):
@@ -49,8 +74,7 @@ class image_predict():
         self.degree = degree
         self.model = model
         
-        img = cv2.imread(path + "/" + imn, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+        img = cv2.cvtColor(imread(r"{0}".format(path + "/" + imn), cv2.IMREAD_COLOR), cv2.COLOR_BGR2BGRA)
         
         pix = np.array(img)[0][0]
         for i in range(0, img.shape[0]):
@@ -93,7 +117,7 @@ class image_predict():
         return self.pred
         
 def reset(path):
-    for j in [file for file in os.listdir(path) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
+    for j in [file for file in os.listdir(path) if file.endswith(".png") or file.endswith(".PNG") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")]:
         try: 
             os.remove(path + "/" + j)
         except:
@@ -166,13 +190,13 @@ def sendmail(ep, inp, outp, username, gamename):
 
 def convertimage(model, ipath, opath, counter, series=-1):
     if series == -1 :
-        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
         for i, file in enumerate(ilist):
-            try :
-                cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
-            except:
-                counter.maxindex -= 1
-                pass
+            #try :
+            imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
+            #except:
+               # counter.filen -= 1
+               # pass
             savelog(opath, i)
             counter.convertpro.setValue(i+1)
             counter.convertpro.update()
@@ -185,12 +209,12 @@ def convertimage(model, ipath, opath, counter, series=-1):
         return
     else :
         
-        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])[int(series)+1:]
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])[int(series)+1:]
         for i, file in enumerate(ilist):
             try :
-                cv2.imwrite(opath + "/"+str(file), image_predict(model, ipath, str(file)).predict())
+                imwrite(opath + "/"+str(file), image_predict(model, ipath, str(file)).predict())
             except:
-                counter.maxindex -= 1
+                counter.filen -= 1
                 pass
             savelog(opath, i+int(series)+1)
             counter.convertpro.setValue(i+int(series)+1+1)
@@ -221,16 +245,20 @@ class Titan(QMainWindow):
         self.gamename = ""
         self.w = 600
         self.h = 400
+        self.filen = 0
         self.initUI()
      
 
-    def initUI(self):
+    def initUI(self):    
         self.setWindowTitle('Titan')
         self.setGeometry(50, 50, self.w, self.h)
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         ipaddress=socket.gethostbyname(socket.gethostname())
         
+        self.splash = QSplashScreen(QPixmap('resource\logo_title_withoutline.png'))
+        self.splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.splash.show()
         
         
         res = requests.get('https://sites.google.com/view/gaea-version')
@@ -238,20 +266,25 @@ class Titan(QMainWindow):
         title = soup.find('h1', attrs = {'id': 'h.xh216tc7v0ru', 'dir':'ltr', 'class':'zfr3Q duRjpb'})
         
         if title.get_text() != "1.0.0":
+            self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "최신버전이 아닙니다. 공식 홈페이지에서 최신버전을 다운받아 주세요.")
             sys.exit()
 
         if ipaddress == "127.0.0.1":
+            self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "인터넷에 연결되어 있지 않습니다.")
             sys.exit()
+            
+        
 
         try :
             self.model = load_model()
         except :
+            self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "이 기기는 타이탄 프로그램을 지원하지 않습니다.")
@@ -332,6 +365,7 @@ class Titan(QMainWindow):
         central_widget.setLayout(layout) 
         self.setCentralWidget(central_widget)
         
+        self.splash.close()
         self.show()
 
     def onChangeduser(self, text):
@@ -374,13 +408,13 @@ class Titan(QMainWindow):
         num = checklog(opath)
         if num == -1:
             convertimage(model, ipath, opath, self)
-            filen = self.convertpro.value()
+            self.filen = self.convertpro.value()
         else :
-            filen = self.convertpro.value()
+            self.filen = self.convertpro.value()
             res = QMessageBox().question(self, '이어하기', '과거에 변환을 하던 기록이 있습니다. 이어서 변환할까요? (아니요를 누를 시 처음부터 다시 변환됩니다. 과거 변환 후에 파일이 추가되었다면 아니요를 눌러주세요.)', QMessageBox.Yes | QMessageBox.No)
             if res == QMessageBox.Yes :
                 self.convertpro.setValue(int(num)+1)
-                filen = self.maxindex-int(num)-1
+                self.filen = self.maxindex-int(num)-1
                 convertimage(model, ipath, opath, self, series=num)
             elif res == QMessageBox.No :
                 convertimage(model, ipath, opath, self)
@@ -389,7 +423,7 @@ class Titan(QMainWindow):
                     
         ret = QMessageBox()
         ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(filen))
+        ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(self.filen))
 
     def selectInput(self):
         options = QFileDialog.Options()

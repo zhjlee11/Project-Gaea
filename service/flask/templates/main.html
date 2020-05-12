@@ -2,18 +2,9 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-		
-		<title>Project Gaea</title>
-		<meta name="description" content="캐릭터 디자인의 새로운 패러다임을 제시합니다.">
-		<meta name="author" content="Laplace">
-		<meta property="og:type" content="website">
-		<meta property="og:title" content="Project Gaea">
-		<meta property="og:description" content="캐릭터 디자인의 새로운 패러다임을 제시합니다.">
-		<meta property="og:image" content="logopng.png">
-		
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/prefixfree/1.0.7/prefixfree.min.js"></script>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-		<link rel="stylesheet" href='css/style.css'>
+		<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 		
 		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
 		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
@@ -29,7 +20,7 @@
 				top:0;
 			}
 
-			.button_a {
+			.button {
 			  width: 140px;
 			  height: 45px;
 			  font-family: 'Roboto', sans-serif;
@@ -47,33 +38,8 @@
 			  outline: none;
 			  }
 
-			.button_a:hover {
+			.button:hover {
 			  background-color: #2EE59D;
-			  box-shadow: 0px 15px 20px rgba(46, 229, 157, 0.4);
-			  color: #fff;
-			  transform: translateY(-7px);
-			}
-			
-			.button_b {
-			  width: 140px;
-			  height: 45px;
-			  font-family: 'Roboto', sans-serif;
-			  font-size: 11px;
-			  text-transform: uppercase;
-			  letter-spacing: 2.5px;
-			  font-weight: 500;
-			  color: #000;
-			  background-color: #fff;
-			  border: none;
-			  border-radius: 45px;
-			  box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
-			  transition: all 0.3s ease 0s;
-			  cursor: pointer;
-			  outline: none;
-			  }
-
-			.button_b:hover {
-			  background-color: #E2A9F3;
 			  box-shadow: 0px 15px 20px rgba(46, 229, 157, 0.4);
 			  color: #fff;
 			  transform: translateY(-7px);
@@ -106,6 +72,11 @@
 		    }
 		</style>
 		
+		{% if message %}
+		<script>		
+			alert('{{message}}')   //이 부분이 중요
+		</script>
+		{% endif %}
 	</head>
 	<body style="overflow: hidden;">
 	    
@@ -115,27 +86,13 @@
 			</br>
 			<h1 style="letter-spacing: 15px; font-size: 5em;">Project Gaea</h1>
 			</br>
-			<button type="button" onclick="location.href='/info.html'" class="button_a" >패러다임 속으로</button>
-			<button type="button" onclick="checklicense()" class="button_b" >다운로드</button>
-			
+			<button type="button" onclick="location.href='/upload'" class="button" >패러다임 속으로</button>
 		</center>		
 		
 		<footer><h6 style="font-size: 0.7em;">백그라운드 캔버스 : <a href="https://codepen.io/towc/pen/YXGYJY" style="color: inherit;">https://codepen.io/towc/pen/YXGYJY</a></h6></footer>
 		
-		<script src='js/script.js'></script>
-		<script type="text/javascript">
-		function goReplace(str) { location.replace(str); }
-		function checklicense() {
-			var con_test = confirm("Project Gaea 라이센스에 동의하십니까?\n[취소를 누를 시 라이센스 페이지로 이동합니다.]");
-			if(con_test == true){
-			  goReplace('https://files.cloud.naver.com/.fileLink/4sbC6MUPV%2Fa8R%2FGLN%2BWtfN3L759aJ3Aqo0ILTLDzHndoovs27xnK64CYcBcdn9MomBe7zOhtnoWF3Cxp7YNwhAk%3D/Setup.exe?authtoken=wGaaUKZR%2B65xf%2F2xjDcELQI%3D');
-			}
-			else if(con_test == false){
-			  goReplace('/license.html');
-			}
-		}
+		<script src="{{ url_for('static', filename='js/script.js') }}"></script>
 		
-		</script>
 		
 
 
