@@ -10,7 +10,7 @@ import datetime
 import socket
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QIcon, QPixmap
-from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QMessageBox, QPushButton, QLabel, QGridLayout, QLineEdit, QProgressBar, QVBoxLayout, QMainWindow, QApplication, QWidget, QFileDialog
 from PyQt5.QtCore import QTimer, Qt
 import smtplib
 from email.mime.text import MIMEText
@@ -70,11 +70,25 @@ def similar(n1, n2, d=0):
         return False
 
 class image_predict():
-    def __init__(self, model, path, imn, degree=0):
+    def __init__(self, model, path, imn, degree=0, titan=None):
         self.degree = degree
         self.model = model
         
         img = cv2.cvtColor(imread(r"{0}".format(path + "/" + imn), cv2.IMREAD_COLOR), cv2.COLOR_BGR2BGRA)
+        
+        if titan.fileSizeWarningIgnore == False:
+            if img.shape[1] > 200 or img.shape[0] > 200:
+                ans = titan.checkyn('이미지 크기 경고', '이미지가 너무 큽니다. 진행 시 컴퓨터에 무리가 갈 수 있으며, 이 문제에 대해서 개발자는 책임을 지지 않습니다. 그냥 진행할까요?')
+                if ans == True:
+                    pass
+                elif ans == False:
+                    titan.fileSizeShutdown = True
+                    return None
+                elif ans == "all":
+                    titan.fileSizeWarningIgnore = True
+                    pass
+                else :
+                    return None
         
         pix = np.array(img)[0][0]
         for i in range(0, img.shape[0]):
@@ -190,13 +204,17 @@ def sendmail(ep, inp, outp, username, gamename):
 
 def convertimage(model, ipath, opath, counter, series=-1):
     if series == -1 :
-        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG")])
         for i, file in enumerate(ilist):
-            #try :
-            imwrite(opath + "/"+str(file), image_predict(model, ipath,  str(file)).predict())
-            #except:
-               # counter.filen -= 1
-               # pass
+            try :
+                imgp = image_predict(model, ipath,  str(file), titan=counter)
+                if counter.fileSizeShutdown == True:
+                    deletelog(opath)
+                    return
+                imwrite(opath + "/"+str(file), imgp.predict())
+            except:
+                counter.filen -= 1
+                pass
             savelog(opath, i)
             counter.convertpro.setValue(i+1)
             counter.convertpro.update()
@@ -209,10 +227,14 @@ def convertimage(model, ipath, opath, counter, series=-1):
         return
     else :
         
-        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG") or file.endswith(".jpg") or file.endswith(".jpge") or file.endswith(".bmp")])[int(series)+1:]
+        ilist = sorted([file for file in os.listdir(ipath) if file.endswith(".png") or file.endswith(".PNG")])[int(series)+1:]
         for i, file in enumerate(ilist):
             try :
-                imwrite(opath + "/"+str(file), image_predict(model, ipath, str(file)).predict())
+                imgp = image_predict(model, ipath, str(file), titan=counter)
+                if counter.fileSizeShutdown == True:
+                    deletelog(opath)
+                    return
+                imwrite(opath + "/"+str(file), imgp.predict())
             except:
                 counter.filen -= 1
                 pass
@@ -243,9 +265,11 @@ class Titan(QMainWindow):
         self.index = 0
         self.username = ""
         self.gamename = ""
-        self.w = 600
-        self.h = 400
+        self.w = 1300
+        self.h = 250
         self.filen = 0
+        self.fileSizeWarningIgnore = False
+        self.fileSizeShutdown = False
         self.initUI()
      
 
@@ -256,24 +280,24 @@ class Titan(QMainWindow):
 
         ipaddress=socket.gethostbyname(socket.gethostname())
         
-        self.splash = QSplashScreen(QPixmap('resource\logo_title_withoutline.png'))
-        self.splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        self.splash.show()
+        #self.splash = QSplashScreen(QPixmap('resource\logo_title_withoutline.png'))
+        #self.splash.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        #self.splash.show()
         
         
         res = requests.get('https://sites.google.com/view/gaea-version')
         soup = BeautifulSoup(res.content, 'html.parser')
         title = soup.find('h1', attrs = {'id': 'h.xh216tc7v0ru', 'dir':'ltr', 'class':'zfr3Q duRjpb'})
         
-        if title.get_text() != "1.0.0":
-            self.splash.close()
+        if title.get_text() != "1.0.5":
+            #self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "최신버전이 아닙니다. 공식 홈페이지에서 최신버전을 다운받아 주세요.")
             sys.exit()
 
         if ipaddress == "127.0.0.1":
-            self.splash.close()
+            #self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "인터넷에 연결되어 있지 않습니다.")
@@ -284,7 +308,7 @@ class Titan(QMainWindow):
         try :
             self.model = load_model()
         except :
-            self.splash.close()
+            #self.splash.close()
             ret = QMessageBox()
             ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
             ret.critical(self, "정보", "이 기기는 타이탄 프로그램을 지원하지 않습니다.")
@@ -293,13 +317,13 @@ class Titan(QMainWindow):
 
         self.setWindowIcon(QIcon('resource/logopng.png'))
 
-        self.lbl = QLabel(self)
-        self.lbl.resize(self.w,300)
-        pixmap = QPixmap("resource/logo_title.png")
-        self.lbl.setPixmap(QPixmap(pixmap))
+        #self.lbl = QLabel(self)
+        #self.lbl.resize(self.w,300)
+        #pixmap = QPixmap("resource/logo_title.png")
+        #self.lbl.setPixmap(QPixmap(pixmap))
         
                   
-        selectinput = QPushButton('&변환할 이미지가 있는 폴더를 선택하세요')
+        selectinput = QPushButton('&변환할 이미지가 있는 폴더를 선택하세요 [폴더 내의 .png 또는 .PNG 파일만 변환합니다.]')
         selectinput.clicked.connect(self.selectInput)
         self.inputtext = QLabel('선택된 폴더가 없습니다.')
       
@@ -354,7 +378,7 @@ class Titan(QMainWindow):
         
         
         layout = QVBoxLayout()
-        layout.addWidget(self.lbl)
+        #layout.addWidget(self.lbl)
         layout.addLayout(grid)
         layout.addLayout(inpgrid)
         #layout.addLayout(degreela)
@@ -365,7 +389,7 @@ class Titan(QMainWindow):
         central_widget.setLayout(layout) 
         self.setCentralWidget(central_widget)
         
-        self.splash.close()
+        #self.splash.close()
         self.show()
 
     def onChangeduser(self, text):
@@ -420,7 +444,11 @@ class Titan(QMainWindow):
                 convertimage(model, ipath, opath, self)
             else :
                 convertimage(model, ipath, opath, self)
-                    
+                
+        self.fileSizeWarningIgnore = False
+        self.fileSizeShutdown = False
+
+        self.convertpro.setValue(self.convertpro.maximum())
         ret = QMessageBox()
         ret.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         ret.information(self, "정보", "{0}개의 이미지 변환 완료".format(self.filen))
@@ -436,6 +464,17 @@ class Titan(QMainWindow):
         options |= QFileDialog.ShowDirsOnly
         self.outputp = QFileDialog. getExistingDirectory(self,"변환한 이미지를 저장할 폴더를 선택하세요." )
         self.outputtext.setText(str(self.outputp))
+        
+    def checkyn(self, title, content):
+         ans = QMessageBox().question(self, title, content, QMessageBox.Yes | QMessageBox.YesToAll | QMessageBox.No)
+         if ans == QMessageBox.Yes:
+             return True
+         elif ans == QMessageBox.No:
+             return False
+         elif ans == QMessageBox.YesToAll:
+             return "all"
+         else:
+             return None
  
 def run():
     app = QApplication(sys.argv)
