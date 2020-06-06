@@ -114,9 +114,15 @@
 			</br>
 			<h1 style="letter-spacing: 15px; font-size: 5em;">Project Gaea</h1>
 			</br>
+            <button type="button" onclick="checklicense_en()" class="button_b" >Download</br>(English)</button>
 			<button type="button" onclick="location.href='/info.html'" class="button_a" >패러다임 속으로</button>
-			<button type="button" onclick="checklicense()" class="button_b" >다운로드</button>
-			
+			<button type="button" onclick="checklicense_kr()" class="button_b" >다운로드</br>(한국어)</button>
+            </br></br></br>
+            <!--<video  width="640" height="360" autoplay loop>
+                <source src="ProjectGaeaAd0001_ls.mp4" type='video/mp4'/>
+            </video>-->
+            <iframe id='advideo' width="560" height="315" src="" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    
 		</center>		
 		
 		<footer><h6 style="font-size: 0.7em;">백그라운드 캔버스 : <a href="https://codepen.io/towc/pen/YXGYJY" style="color: inherit;">https://codepen.io/towc/pen/YXGYJY</a></h6></footer>
@@ -124,45 +130,57 @@
 		<script src='js/script.js'></script>
         
 		<script type="text/javascript">
+        
+
+        function videoreload() {
+            var lang = "un"; //언어 값 받아올 변수. un은 undefined 의 앞 2글자.
+            if (navigator.language!=null) //이 값이 null이 아니면. 즉 크롬이나 파폭이면
+            {
+                lang = navigator.language;
+            } else if (navigator.userLanguage!=null) { //이 값이 null이 아니면. 즉 익스라면
+                lang = navigator.userLanguage;
+            } else if (navigator.systemLanguage!=null) { //여기까지는 안 올거 같은데 혹시나 해서
+                lang = navigator.systemLanguage;
+            } else { //이도저도 아니면
+                lang="un";
+            }
+
+            lang = lang.toLowerCase(); //받아온 값을 소문자로 변경
+            lang = lang.substring(0, 2); //소문자로 변경한 갚의 앞 2글자만 받아오기
+
+            console.log(lang);
+
+            if (lang=="ko") { 
+                document.getElementById('advideo').src = "https://www.youtube.com/embed/zGhwyuZ35WA?controls=0&autoplay=1&mute=1";
+            } else { 
+                document.getElementById('advideo').src = "https://www.youtube.com/embed/ebQ1p0wJjzY?controls=0&autoplay=1&mute=1";
+            }
+        }
+
 		function goReplace(str) { location.replace(str); }
-		function checklicense() {
+		function checklicense_kr() {
 			var con_test = confirm("Project Gaea 라이센스에 동의하십니까?\n[취소를 누를 시 라이센스 페이지로 이동합니다.]");
-			if(con_test == true){
-
-
-              
-              var config = {
-                  apiKey: "AIzaSyBKT07cn7qKMD0AosTmMC5k37JEFkiCZMU",
-                  authDomain: "project-gaea-e5026.firebaseapp.com",
-                  databaseURL: "https://project-gaea-e5026.firebaseio.com",
-                  storageBucket:  "project-gaea-e5026.appspot.com",
-                  messagingSenderId: "G-R7SF2TH659"
-              };
-              firebase.initializeApp(config);
-
-              var fileName = "Setup (1).exe"
-              var storage = firebase.storage();
-              var pathReference = storage.ref(fileName);
-              pathReference.getDownloadURL().then(function(url) {
-              
-              goReplace(url)
-               });
-			  
+			if(con_test == true){              
+                goReplace('https://drive.google.com/uc?export=download&id=1bFItNssn7I-5490-D9UuFkeMcq_LbEBL');
 			}
 			else if(con_test == false){
-			  goReplace('/license.html');
+			    goReplace('/license.html');
 			}
-		}
+		} 
+        function checklicense_en() {
+			var con_test = confirm("Do you agree with the Project Gaea license?\n[When you click Cancel, you will be taken to the License page.]");
+			if(con_test == true){              
+                goReplace('https://drive.google.com/uc?export=download&id=10KyORz5dWbamZIjdrKWBm_K8MCZER36H');
+			}
+			else if(con_test == false){
+			    goReplace('/license.html');
+			}
+		}    
 
-
-        
-                
+        window.onload = function () {videoreload();}
 		</script>
 		
 
 
 	</body>
-
-    <script src="https://www.gstatic.com/firebasejs/3.7.0/firebase.js"></script>
-
 </html>

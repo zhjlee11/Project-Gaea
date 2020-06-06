@@ -1,37 +1,91 @@
 <html>
-    <head>
-	    <meta charset="utf-8">
+	<head>
+		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		
+		<title>Project Gaea</title>
+		<meta name="description" content="캐릭터 디자인의 새로운 패러다임을 제시합니다.">
+		<meta name="author" content="Laplace">
+		<meta property="og:type" content="website">
+		<meta property="og:title" content="Project Gaea">
+		<meta property="og:description" content="캐릭터 디자인의 새로운 패러다임을 제시합니다.">
+		<meta property="og:image" content="https://blogfiles.pstatic.net/MjAyMDA0MjFfMjU1/MDAxNTg3NDI0OTcyNDEy.GK67hwiSOKa3EEXrYuW0ZIUBHXP-OtxVwP8sfGOC5R0g.SjxnDltW6fQQPlyPK_l1JpCzAp73hnAnt7WcKTbIlkEg.PNG.zhjlee11/logopng.png">
+		
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/prefixfree/1.0.7/prefixfree.min.js"></script>
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 		<link rel="stylesheet" href='css/style.css'>
+		
+		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
 		<style>
-			.container{
-				margin-top:20px;
+			@import url(//fonts.googleapis.com/earlyaccess/nanumgothic.css);
+			div {
+				position:absolute;
+				z-index:0;
+				left:0;
+				top:0;
 			}
-			.image-preview-input {
-				position: relative;
-				overflow: hidden;
-				margin: 0px;    
-				color: #333;
-				background-color: #fff;
-				border-color: #ccc;    
-			}
-			.image-preview-input input[type=file] {
-				position: absolute;
-				top: 0;
-				right: 0;
-				margin: 0;
-				padding: 0;
-				font-size: 20px;
-				cursor: pointer;
-				opacity: 0;
-				filter: alpha(opacity=0);
-			}
-			.image-preview-input-title {
-				margin-left:2px;
+
+			.button_a {
+			  width: 140px;
+			  height: 45px;
+			  font-family: 'Roboto', sans-serif;
+			  font-size: 11px;
+			  text-transform: uppercase;
+			  letter-spacing: 2.5px;
+			  font-weight: 500;
+			  color: #000;
+			  background-color: #fff;
+			  border: none;
+			  border-radius: 45px;
+			  box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+			  transition: all 0.3s ease 0s;
+			  cursor: pointer;
+			  outline: none;
+			  }
+
+			.button_a:hover {
+			  background-color: #2EE59D;
+			  box-shadow: 0px 15px 20px rgba(46, 229, 157, 0.4);
+			  color: #fff;
+			  transform: translateY(-7px);
 			}
 			
-			
+			.button_b {
+			  width: 140px;
+			  height: 45px;
+			  font-family: 'Roboto', sans-serif;
+			  font-size: 11px;
+			  text-transform: uppercase;
+			  letter-spacing: 2.5px;
+			  font-weight: 500;
+			  color: #000;
+			  background-color: #fff;
+			  border: none;
+			  border-radius: 45px;
+			  box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+			  transition: all 0.3s ease 0s;
+			  cursor: pointer;
+			  outline: none;
+			  }
+
+			.button_b:hover {
+			  background-color: #E2A9F3;
+			  box-shadow: 0px 15px 20px rgba(46, 229, 157, 0.4);
+			  color: #fff;
+			  transform: translateY(-7px);
+			}
+						
+			subtitle {
+			    position: absolute;
+				left: 0;
+				top:0;
+				font-size: 32px;
+				color: white;
+				z-index:0;
+			}
 			
 			canvas {
 			  position:fixed;
@@ -41,28 +95,92 @@
 			  touch-action: none;
 			  z-index : -999;
 			} 
+			
+			footer{ position:fixed; 
+			  left:0px; 
+			  bottom:0px; 
+			  height:20px; 
+			  width:100%; 
+			  color: white; 
+		    }
 		</style>
 		
-		<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
-		<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
-		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
-
-    </head>
-    <body>
-	    <div class="container">
+	</head>
+	<body style="overflow: hidden;">
+	    
 		<canvas id=c></canvas>
-		<div class="contact-clean" style="background-color: #FFFFFF;  padding: 30px 30px; border-radius: 40px 80px; width : auto;">
-			<center>
-			<h1><a href="/main.html" style="color: inherit;">Project Gaea</a></h1>
-			</center>
+		<center style="color: #FFFFFF; padding: 100px 0px;">
+			<h3 style="font-family:Nanum Gothic; letter-spacing: 3px; font-size: 2em;">캐릭터 디자인의 새로운 패러다임</h3>
+			</br>
+			<h1 style="letter-spacing: 15px; font-size: 5em;">Project Gaea</h1>
+			</br>
+            <button type="button" onclick="checklicense_en()" class="button_b" >Download</br>(English)</button>
+			<button type="button" onclick="location.href='/info.html'" class="button_a" >패러다임 속으로</button>
+			<button type="button" onclick="checklicense_kr()" class="button_b" >다운로드</br>(한국어)</button>
+            </br></br></br>
+            <!--<video  width="640" height="360" autoplay loop>
+                <source src="ProjectGaeaAd0001_ls.mp4" type='video/mp4'/>
+            </video>-->
+            <iframe id='advideo' width="560" height="315" src="" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    
+		</center>		
+		
+		<footer><h6 style="font-size: 0.7em;">백그라운드 캔버스 : <a href="https://codepen.io/towc/pen/YXGYJY" style="color: inherit;">https://codepen.io/towc/pen/YXGYJY</a></h6></footer>
+		
+		<script src='js/script.js'></script>
+        
+		<script type="text/javascript">
+        
+
+        function videoreload() {
+            var lang = "un"; //언어 값 받아올 변수. un은 undefined 의 앞 2글자.
+            if (navigator.language!=null) //이 값이 null이 아니면. 즉 크롬이나 파폭이면
+            {
+                lang = navigator.language;
+            } else if (navigator.userLanguage!=null) { //이 값이 null이 아니면. 즉 익스라면
+                lang = navigator.userLanguage;
+            } else if (navigator.systemLanguage!=null) { //여기까지는 안 올거 같은데 혹시나 해서
+                lang = navigator.systemLanguage;
+            } else { //이도저도 아니면
+                lang="un";
+            }
+
+            lang = lang.toLowerCase(); //받아온 값을 소문자로 변경
+            lang = lang.substring(0, 2); //소문자로 변경한 갚의 앞 2글자만 받아오기
+
+            console.log(lang);
+
+            if (lang=="ko") { 
+                document.getElementById('advideo').src = "https://www.youtube.com/embed/zGhwyuZ35WA?controls=0&autoplay=1&mute=1";
+            } else { 
+                document.getElementById('advideo').src = "https://www.youtube.com/embed/ebQ1p0wJjzY?controls=0&autoplay=1&mute=1";
+            }
+        }
+
+		function goReplace(str) { location.replace(str); }
+		function checklicense_kr() {
+			var con_test = confirm("Project Gaea 라이센스에 동의하십니까?\n[취소를 누를 시 라이센스 페이지로 이동합니다.]");
+			if(con_test == true){              
+                goReplace('https://drive.google.com/uc?export=download&id=1bFItNssn7I-5490-D9UuFkeMcq_LbEBL');
+			}
+			else if(con_test == false){
+			    goReplace('/license.html');
+			}
+		} 
+        function checklicense_en() {
+			var con_test = confirm("Do you agree with the Project Gaea license?\n[When you click Cancel, you will be taken to the License page.]");
+			if(con_test == true){              
+                goReplace('https://drive.google.com/uc?export=download&id=10KyORz5dWbamZIjdrKWBm_K8MCZER36H');
+			}
+			else if(con_test == false){
+			    goReplace('/license.html');
+			}
+		}    
+
+        window.onload = function () {videoreload();}
+		</script>
+		
 
 
-			
-			<button type="button" onclick="location.href='https://drive.google.com/u/0/uc?export=download&confirm=6DGM&id=1XlhtERev0UksB25vfawoIw5dJisoFDPb' class="button" >다운로드</button>
-			
-		</div>
-		</div>
-	  
-	  <script src='js/script.js'></script>
-    </body>
+	</body>
 </html>
