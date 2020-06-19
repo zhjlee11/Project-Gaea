@@ -18,6 +18,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import requests
 from bs4 import BeautifulSoup
+import qdarkstyle
 
 
 
@@ -478,6 +479,7 @@ class Titan(QMainWindow):
  
 def run():
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
     ex = Titan()
     sys.exit(app.exec_())
 
