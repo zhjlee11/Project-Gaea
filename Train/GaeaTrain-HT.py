@@ -10,13 +10,17 @@
 # In[1]:
 
 
-#import plaidml.keras
-#plaidml.keras.install_backend()
-
 import tensorflow as tf
 print(tf.__version__)
 
+import keras
+
+import plaidml.keras
+plaidml.keras.install_backend()
+
+
 from tensorboard.plugins.hparams import api as hp
+keras.backend.backend()
 
 
 # In[2]:
@@ -425,14 +429,14 @@ print(1e-4)
 
 # ## (6) 학습 Setting
 
-# In[58]:
+# In[26]:
 
 
 #학습 횟수
-EPOCHS = 3000
+EPOCHS = 2500
 
 
-# In[28]:
+# In[27]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -455,7 +459,7 @@ def generate_images(model, test_input):
   plt.show()
 
 
-# In[29]:
+# In[28]:
 
 
 #이미지를 Generator을 통해서 "여름->겨울"로 변환하는 함수
@@ -482,7 +486,7 @@ def generate_images_r(model, test_input, real_output, e=-1):
   return prediction1
 
 
-# In[30]:
+# In[29]:
 
 
 def sampling(train_x, train_y, batch_size) :
@@ -496,7 +500,7 @@ def sampling(train_x, train_y, batch_size) :
   return train_xb, train_yb
 
 
-# In[31]:
+# In[30]:
 
 
 #@tf.function
@@ -526,7 +530,7 @@ def train_step(input_image, target):
 
 # ## (7) 학습 함수 구성
 
-# In[32]:
+# In[31]:
 
 
 #@tf.function
@@ -543,7 +547,7 @@ def cal_g_loss(input_image, target, generator, discriminator):
   return gen_total_loss
 
 
-# In[33]:
+# In[32]:
 
 
 #@tf.function
@@ -560,7 +564,7 @@ def cal_d_loss(input_image, target, generator, discriminator):
   return disc_loss
 
 
-# In[34]:
+# In[33]:
 
 
 '''train_x = []
@@ -573,7 +577,7 @@ for i in filelist:
   train_y.append(i.outp)'''
 
 
-# In[35]:
+# In[34]:
 
 
 from random import sample
@@ -593,7 +597,7 @@ def sampling_list(a, b, batch):
   return g, h
 
 
-# In[36]:
+# In[35]:
 
 
 from random import sample
@@ -612,7 +616,7 @@ def sampling_batch(fl, b, pd='./Dataset/'):
             continue
 
 
-# In[37]:
+# In[36]:
 
 
 '''train_x = np.empty(shape=[0, IMG_HEIGHT, IMG_WIDTH, 3], dtype='float32')
@@ -643,7 +647,7 @@ for i in filelist:
     '''
 
 
-# In[38]:
+# In[37]:
 
 
 def readago():
@@ -661,7 +665,7 @@ def readago():
     return losstrainlist, losstestlist
 
 
-# In[39]:
+# In[38]:
 
 
 def drawlossg(ll1, ll2, epoch):
@@ -678,7 +682,7 @@ def drawlossg(ll1, ll2, epoch):
     plt.show()
 
 
-# In[40]:
+# In[39]:
 
 
 def saveloss(epoch, loss1, loss2):
@@ -688,7 +692,7 @@ def saveloss(epoch, loss1, loss2):
     return loss1.numpy(), loss2.numpy()
 
 
-# In[41]:
+# In[ ]:
 
 
 PATH_DIR='./testinput/'
@@ -714,7 +718,7 @@ for i in testlist:
 print("모든 테스트 이미지 로드 완료")
 
 
-# In[42]:
+# In[ ]:
 
 
 def save_model(generator, discriminator, num):
@@ -722,7 +726,7 @@ def save_model(generator, discriminator, num):
   discriminator.save('saved_model1/discriminator{0}.h5'.format(num))
 
 
-# In[43]:
+# In[ ]:
 
 
 
@@ -743,7 +747,15 @@ for i in range(2):
 plt.show()
 
 
-# In[44]:
+# In[ ]:
+
+
+def my_func(arg):
+  arg = tf.convert_to_tensor(arg, dtype=tf.float32)
+  return arg
+
+
+# In[ ]:
 
 
 def testall(ge, di):
@@ -773,22 +785,30 @@ def testall(ge, di):
     model = generator #tf.keras.models.load_model("saved_model/generator4.h5")
     #cv2.imwrite('rinptt.png', (cv2.cvtColor(np.array(testlist2[1].inp), cv2.COLOR_BGR2RGBA)*0.5+0.5)*255)
     
+    ct1 = c[0][np.newaxis]
+    ct2 = c[1][np.newaxis]
+    ct3 = c[2][np.newaxis]
+    
+    dt1 = d[0][np.newaxis]
+    dt2 = d[1][np.newaxis]
+    dt3 = d[2][np.newaxis]
+    
     lossg = 0.0
-    lossg+=cal_g_loss(c[0][np.newaxis], d[0][np.newaxis], ge, di)
-    lossg+=cal_g_loss(c[1][np.newaxis], d[1][np.newaxis], ge, di)
-    lossg+=cal_g_loss(c[2][np.newaxis], d[2][np.newaxis], ge, di)
+    lossg+=cal_g_loss(ct1, dt1, ge, di)
+    lossg+=cal_g_loss(ct2, dt2, ge, di)
+    lossg+=cal_g_loss(ct3, dt3, ge, di)
     
     lossd = 0.0
-    lossd+=cal_d_loss(c[0][np.newaxis], d[0][np.newaxis], ge, di)
-    lossd+=cal_d_loss(c[1][np.newaxis], d[1][np.newaxis], ge, di)
-    lossd+=cal_d_loss(c[2][np.newaxis], d[2][np.newaxis], ge, di)
+    lossd+=cal_d_loss(ct1, dt1, ge, di)
+    lossd+=cal_d_loss(ct2, dt2, ge, di)
+    lossd+=cal_d_loss(ct3, dt3, ge, di)
     
     return lossg, lossd
 
 
 # ## (8) 학습 시작
 
-# In[59]:
+# In[ ]:
 
 
 generator = None
@@ -810,17 +830,19 @@ def trainging(num, hparams):
           c, d = sampling_list(test_x, test_y, 1)
           
           for n in range(0, BATCH_SIZE):
-              losstrain = train_step(a[n][np.newaxis], b[n][np.newaxis])
+                xT = a[n][np.newaxis]
+                yT = b[n][np.newaxis]
+                losstrain = train_step(xT, yT)
           if epoch%10 == 0:
               print("[{0}번째 튜닝] {1}번째 학습 완료".format(num, epoch))
         
-        save_model(generator, discriminator, num)
+        #save_model(generator, discriminator, num)
         _lg, _ld = testall(generator, discriminator)
         tf.summary.scalar(METRIC_ACCURACY, _lg + _ld, step=1)
         return _lg, _ld
 
 
-# In[60]:
+# In[ ]:
 
 
 class tunner():
